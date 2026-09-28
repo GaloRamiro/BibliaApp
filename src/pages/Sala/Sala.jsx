@@ -14,7 +14,19 @@ import {
 import { supabase } from "../../lib/supabase";
 import { buscarVersiculo } from "../../services/bibliaService";
 import { detectarVersiculos } from "../../utils/detectarVersiculo";
+// ==================================================
+// CONFIGURACIÓN DEL CONSENSO
+// ==================================================
 
+// Para esta primera prueba necesitamos
+// 2 dispositivos diferentes.
+
+const VOTOS_NECESARIOS = 2;
+
+// Las detecciones deben ocurrir dentro
+// de una ventana de 5 segundos.
+
+const VENTANA_CONSENSO_MS = 5000;
 import "./Sala.css";
 
 function Sala() {
@@ -349,7 +361,125 @@ function Sala() {
       supabase.removeChannel(canalDetecciones);
     };
   }, [id]);
+  // ==================================================
+  // MOTOR DE CONSENSO
+  // ==================================================
+  //
+  // Cada vez que llega una nueva detección,
+  // revisamos las detecciones recientes.
+  //
+  // Para confirmar un versículo necesitamos:
+  //
+  // 1. Misma referencia.
+  // 2. Misma sala.
+  // 3. Detectada recientemente.
+  // 4. Dispositivos diferentes.
+  // ==================================================
 
+  useEffect(() => {
+    // Si todavía no tenemos detecciones,
+    // no hay nada que analizar.
+
+    if (deteccionesRecientes.length === 0) {
+      return;
+    }
+
+    // ==================================================
+    // OBTENER LA DETECCIÓN MÁS RECIENTE
+    // ==================================================
+
+    const ultimaDeteccion =
+      deteccionesRecientes[deteccionesRecientes.length - 1];
+
+    if (!ultimaDeteccion) {
+      return;
+    }
+
+    // Momento en que Supabase registró
+    // la última detección.
+
+    const tiempoUltimaDeteccion = new Date(
+      ultimaDeteccion.created_at,
+    ).getTime();
+
+    // ==================================================
+    // BUSCAR DETECCIONES COMPATIBLES
+    // ==================================================
+    //
+    // Queremos detecciones:
+    //
+    // - del mismo versículo
+    // - ocurridas cerca de la última
+    // ==================================================
+
+    const deteccionesCompatibles = deteccionesRecientes.filter((deteccion) => {
+      const tiempoDeteccion = new Date(deteccion.created_at).getTime();
+
+      const diferenciaTiempo = Math.abs(
+        tiempoUltimaDeteccion - tiempoDeteccion,
+      );
+
+      return (
+        deteccion.referencia === ultimaDeteccion.referencia &&
+        diferenciaTiempo <= VENTANA_CONSENSO_MS
+      );
+    });
+
+    // ==================================================
+    // CONTAR DISPOSITIVOS DIFERENTES
+    // ==================================================
+    //
+    // Set elimina valores repetidos.
+    //
+    // Ejemplo:
+    //
+    // [A, A, A]
+    //
+    // se convierte en:
+    //
+    // [A]
+    //
+    // Por lo tanto un dispositivo no puede
+    // votar varias veces.
+    // ==================================================
+
+    const dispositivosUnicos = new Set(
+      deteccionesCompatibles.map((deteccion) => deteccion.dispositivo_id),
+    );
+
+    const cantidadVotos = dispositivosUnicos.size;
+
+    console.log(
+      "Analizando consenso:",
+      ultimaDeteccion.referencia,
+      "Votos:",
+      cantidadVotos,
+    );
+
+    // ==================================================
+    // ¿SE ALCANZÓ EL CONSENSO?
+    // ==================================================
+
+    if (cantidadVotos >= VOTOS_NECESARIOS) {
+      const nuevoConsenso = {
+        referencia: ultimaDeteccion.referencia,
+
+        libro: ultimaDeteccion.libro,
+
+        capitulo: ultimaDeteccion.capitulo,
+
+        versiculo: ultimaDeteccion.versiculo,
+
+        votos: cantidadVotos,
+
+        confirmadoEn: new Date().toISOString(),
+      };
+
+      console.log("CONSENSO ALCANZADO:", nuevoConsenso);
+
+      setConsenso(nuevoConsenso);
+    }
+  }, [deteccionesRecientes]);
   // ==================================================
   // GUARDAR DETECCIÓN EN SUPABASE
   // ==================================================
@@ -835,7 +965,25 @@ function Sala() {
             <p className="sala-microphone-error">{errorMicrofono}</p>
           )}
         </div>
+        {/* ==============================================
+    CONSENSO
+    ============================================== */}
 
+        {consenso && (
+          <div className="sala-info-card">
+            <div className="sala-info-icon">
+              <Users size={22} />
+            </div>
+
+            <div>
+              <span>Versículo confirmado</span>
+
+              <strong>{consenso.referencia}</strong>
+
+              <small>{consenso.votos} dispositivos coincidieron</small>
+            </div>
+          </div>
+        )}
         {/* ==============================================
             TRANSCRIPCIÓN
             ============================================== */}
