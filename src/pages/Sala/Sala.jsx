@@ -1,8 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-
 import { useNavigate, useParams } from "react-router-dom";
-
-import { buscarVersiculo } from "../../services/bibliaService";
 
 import {
   ArrowLeft,
@@ -15,20 +12,23 @@ import {
 } from "lucide-react";
 
 import { supabase } from "../../lib/supabase";
-
+import { buscarVersiculo } from "../../services/bibliaService";
 import { detectarVersiculos } from "../../utils/detectarVersiculo";
 
 import "./Sala.css";
 
 function Sala() {
-  // Obtenemos el ID de la sala desde la URL.
+  // ==================================================
+  // DATOS DE LA RUTA
+  // ==================================================
+
   const { id } = useParams();
 
   const navigate = useNavigate();
 
-  // --------------------------------------------------
+  // ==================================================
   // ESTADOS GENERALES
-  // --------------------------------------------------
+  // ==================================================
 
   const [sala, setSala] = useState(null);
 
@@ -38,49 +38,66 @@ function Sala() {
 
   const [conectados, setConectados] = useState(0);
 
-  // --------------------------------------------------
+  // ==================================================
   // ESTADOS DEL MICRÓFONO
-  // --------------------------------------------------
+  // ==================================================
 
-  // Nos indica si actualmente estamos escuchando.
   const [escuchando, setEscuchando] = useState(false);
 
-  // Aquí guardaremos todo lo que el navegador entienda.
   const [transcripcion, setTranscripcion] = useState("");
 
-  // Aquí guardaremos la última referencia bíblica detectada.
+  const [errorMicrofono, setErrorMicrofono] = useState("");
+
+  // ==================================================
+  // ESTADOS DE LOS VERSÍCULOS
+  // ==================================================
+
+  // Última referencia detectada.
   //
   // Ejemplo:
-  //
   // {
   //   libro: "Juan",
   //   capitulo: 3,
   //   versiculo: 16,
   //   referencia: "Juan 3:16"
   // }
+
   const [versiculoDetectado, setVersiculoDetectado] = useState(null);
 
-  // Aquí guardaremos el texto que devuelve la API bíblica.
-  //
-  // Ejemplo:
-  //
-  // {
-  //   referencia: "Juan 3:16",
-  //   texto: "...",
-  //   version: "RVR1909"
-  // }
+  // Texto real obtenido desde la API.
+
   const [textoVersiculo, setTextoVersiculo] = useState(null);
 
-  // Mensaje relacionado con el micrófono.
-  const [errorMicrofono, setErrorMicrofono] = useState("");
+  // Todos los versículos detectados
+  // durante la predicación.
 
-  // useRef nos permite guardar el objeto SpeechRecognition
-  // sin perderlo cada vez que React actualiza la pantalla.
+  const [historialVersiculos, setHistorialVersiculos] = useState([]);
+
+  // ==================================================
+  // REFERENCIA AL RECONOCIMIENTO DE VOZ
+  // ==================================================
+
   const reconocimientoRef = useRef(null);
+  // ==================================================
+  // IDENTIFICADOR DEL DISPOSITIVO
+  // ==================================================
+  //
+  // Cada pestaña/dispositivo que entra a la sala
+  // tendrá su propio identificador.
+  //
+  // Lo guardamos en useRef porque queremos que
+  // permanezca igual mientras esta pantalla exista.
+  //
+  // Lo utilizaremos para:
+  //
+  // 1. Presence
+  // 2. Guardar detecciones
+  // 3. Calcular consenso
 
-  // --------------------------------------------------
-  // BUSCAR SALA EN SUPABASE
-  // --------------------------------------------------
+  const dispositivoIdRef = useRef(crypto.randomUUID());
+  // ==================================================
+  // CARGAR SALA DESDE SUPABASE
+  // ==================================================
 
   useEffect(() => {
     async function cargarSala() {
@@ -112,28 +129,53 @@ function Sala() {
     cargarSala();
   }, [id]);
 
-  // --------------------------------------------------
+  // ==================================================
   // REALTIME PRESENCE
-  // --------------------------------------------------
+  // ==================================================
+
+  // ==================================================
+  // REALTIME PRESENCE
+  // ==================================================
 
   useEffect(() => {
-    let canal;
+    // Nos permite saber si esta ejecución del efecto
+    // todavía sigue activa.
+    //
+    // Esto es importante porque React en desarrollo
+    // puede montar y desmontar un efecto rápidamente.
+    let activo = true;
+
+    // Aquí guardaremos el canal creado
+    // para poder eliminarlo al salir de la sala.
+    let canal = null;
 
     async function conectarRealtime() {
+      // Primero obtenemos al usuario conectado.
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (!user) {
+      // Mientras esperábamos a Supabase,
+      // React pudo haber desmontado este efecto.
+      //
+      // Si ocurrió eso, NO continuamos.
+      if (!activo || !user) {
         return;
       }
 
-      // Cada pestaña o dispositivo tendrá
-      // su propio identificador.
-      const dispositivoId = crypto.randomUUID();
+      // Utilizamos el identificador que pertenece
+      // a este dispositivo/pestaña.
 
-      // Creamos un canal diferente
-      // para cada sala.
+      const dispositivoId = dispositivoIdRef.current;
+
+      // Todos los dispositivos de esta sala utilizan
+      // EL MISMO nombre de canal.
+      //
+      // Ejemplo:
+      //
+      // sala:abc123
+      //
+      // Esto permite que todos puedan verse entre sí.
       canal = supabase.channel(`sala:${id}`, {
         config: {
           presence: {
@@ -142,25 +184,63 @@ function Sala() {
         },
       });
 
-      // Cuando cambia la presencia,
-      // contamos nuevamente los dispositivos.
+      // ==================================================
+      // PRESENCE SYNC
+      // ==================================================
+      //
+      // IMPORTANTE:
+      //
+      // Registramos .on() ANTES de subscribe().
+      //
+      // Cada vez que entra o sale un dispositivo,
+      // Supabase sincroniza el estado.
+      // ==================================================
+
       canal.on(
         "presence",
         {
           event: "sync",
         },
         () => {
+          // Si este efecto ya murió,
+          // no actualizamos React.
+          if (!activo || !canal) {
+            return;
+          }
+
           const estado = canal.presenceState();
 
+          // Cada key representa un dispositivo conectado.
           const cantidad = Object.keys(estado).length;
 
           setConectados(cantidad);
         },
       );
 
-      // Nos suscribimos al canal.
+      // Antes de suscribirnos volvemos a comprobar
+      // que esta ejecución todavía siga activa.
+      if (!activo) {
+        return;
+      }
+
+      // ==================================================
+      // CONECTARNOS
+      // ==================================================
+
       canal.subscribe(async (estado) => {
-        if (estado === "SUBSCRIBED") {
+        // Solo hacemos track cuando Supabase
+        // confirma que ya estamos conectados.
+        if (estado !== "SUBSCRIBED") {
+          return;
+        }
+
+        // Puede ocurrir que el efecto haya sido
+        // desmontado justo mientras conectábamos.
+        if (!activo || !canal) {
+          return;
+        }
+
+        try {
           await canal.track({
             dispositivo_id: dispositivoId,
 
@@ -168,67 +248,90 @@ function Sala() {
 
             conectado_en: new Date().toISOString(),
           });
+        } catch (errorPresence) {
+          // No mostramos errores si pertenecen
+          // a una ejecución vieja del efecto.
+          if (activo) {
+            console.error("Error al registrar Presence:", errorPresence);
+          }
         }
       });
     }
 
     conectarRealtime();
 
-    // Cuando salimos de la página,
-    // eliminamos nuestra conexión.
+    // ==================================================
+    // LIMPIEZA
+    // ==================================================
+
     return () => {
+      // Primero marcamos esta ejecución como terminada.
+      //
+      // De esta manera cualquier operación async
+      // que todavía esté esperando sabe que debe parar.
+      activo = false;
+
+      // Después eliminamos únicamente el canal
+      // creado por esta ejecución.
       if (canal) {
         supabase.removeChannel(canal);
+
+        canal = null;
       }
     };
   }, [id]);
 
-  // --------------------------------------------------
-  // PREPARAR RECONOCIMIENTO DE VOZ
-  // --------------------------------------------------
+  // ==================================================
+  // RECONOCIMIENTO DE VOZ
+  // ==================================================
 
   useEffect(() => {
-    // Algunos navegadores utilizan SpeechRecognition.
-    // Chrome normalmente utiliza webkitSpeechRecognition.
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    // Si el navegador no soporta
-    // reconocimiento de voz.
+    // Revisamos si el navegador
+    // soporta reconocimiento de voz.
+
     if (!SpeechRecognition) {
       setErrorMicrofono("Este navegador no soporta reconocimiento de voz.");
 
       return;
     }
 
-    // Creamos nuestro reconocedor.
+    // Creamos el reconocedor.
+
     const reconocimiento = new SpeechRecognition();
 
-    // Queremos seguir escuchando.
+    // Queremos que siga escuchando.
+
     reconocimiento.continuous = true;
 
-    // También queremos resultados parciales.
+    // También recibiremos texto temporal.
+
     reconocimiento.interimResults = true;
 
     // Español de Ecuador.
+
     reconocimiento.lang = "es-EC";
 
-    // ------------------------------------------------
-    // CUANDO EL NAVEGADOR RECONOCE PALABRAS
-    // ------------------------------------------------
+    // ==================================================
+    // CUANDO CHROME RECONOCE VOZ
+    // ==================================================
 
     reconocimiento.onresult = (event) => {
       let textoFinal = "";
 
       let textoTemporal = "";
 
-      // event.results contiene los fragmentos
-      // que Chrome está reconociendo.
+      // Recorremos los resultados
+      // entregados por el navegador.
+
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const texto = event.results[i][0].transcript;
 
-        // Si Chrome considera terminado
-        // el fragmento, pasa a textoFinal.
+        // Si Chrome ya considera
+        // terminado este fragmento.
+
         if (event.results[i].isFinal) {
           textoFinal += texto + " ";
         } else {
@@ -236,64 +339,90 @@ function Sala() {
         }
       }
 
-      // ------------------------------------------------
-      // CUANDO TENEMOS TEXTO FINAL
-      // ------------------------------------------------
+      // ==================================================
+      // TEXTO FINAL
+      // ==================================================
 
       if (textoFinal) {
-        // Agregamos el texto reconocido
-        // a la transcripción completa.
+        // Agregamos el texto a la transcripción.
+
         setTranscripcion((textoAnterior) => textoAnterior + textoFinal);
 
-        // ----------------------------------------------
-        // BUSCAR TODAS LAS REFERENCIAS BÍBLICAS
-        // ----------------------------------------------
+        // Buscamos todas las referencias
+        // existentes dentro del fragmento.
 
         const referenciasEncontradas = detectarVersiculos(textoFinal);
 
         console.log("Referencias encontradas:", referenciasEncontradas);
 
-        // Si encontramos una o varias referencias...
+        // Si encontramos referencias...
+
         if (referenciasEncontradas.length > 0) {
-          // Tomamos la última.
-          //
-          // Ejemplo:
-          //
-          // [
-          //   Juan 3:16,
-          //   Romanos 8:28,
-          //   Mateo 5:14
-          // ]
-          //
-          // Resultado:
-          // Mateo 5:14
+          // ==================================================
+          // GUARDAR TODAS EN EL HISTORIAL
+          // ==================================================
+
+          setHistorialVersiculos((historialAnterior) => {
+            const nuevoHistorial = [...historialAnterior];
+
+            referenciasEncontradas.forEach((referencia) => {
+              // Revisamos la última guardada.
+
+              const ultimoGuardado = nuevoHistorial[nuevoHistorial.length - 1];
+
+              // Evitamos duplicados consecutivos.
+
+              if (ultimoGuardado?.referencia === referencia.referencia) {
+                return;
+              }
+
+              // Guardamos la referencia.
+
+              nuevoHistorial.push({
+                ...referencia,
+
+                detectadoEn: new Date().toISOString(),
+              });
+            });
+
+            return nuevoHistorial;
+          });
+
+          // ==================================================
+          // OBTENER LA ÚLTIMA REFERENCIA
+          // ==================================================
 
           const ultimaReferencia =
             referenciasEncontradas[referenciasEncontradas.length - 1];
 
           console.log("Último versículo detectado:", ultimaReferencia);
+          // Guardamos lo que este dispositivo detectó
+          // para posteriormente compararlo con los demás.
 
+          guardarDeteccion(ultimaReferencia);
           // Mostramos inmediatamente
-          // la referencia encontrada.
+          // la referencia.
+
           setVersiculoDetectado(ultimaReferencia);
 
           // Limpiamos el texto anterior
           // mientras esperamos la API.
+
           setTextoVersiculo(null);
 
-          // --------------------------------------------
-          // CONSULTAR EL TEXTO REAL DEL VERSÍCULO
-          // --------------------------------------------
+          // ==================================================
+          // CONSULTAR API BÍBLICA
+          // ==================================================
 
           buscarVersiculo(
             ultimaReferencia.libro,
+
             ultimaReferencia.capitulo,
+
             ultimaReferencia.versiculo,
           ).then((resultado) => {
             console.log("Texto bíblico recibido:", resultado);
 
-            // Si la API respondió correctamente,
-            // guardamos el texto.
             if (resultado) {
               setTextoVersiculo(resultado);
             }
@@ -301,18 +430,18 @@ function Sala() {
         }
       }
 
-      // El texto temporal todavía no lo mostramos
-      // en pantalla.
-      // Lo dejamos en consola para observar
-      // cómo trabaja Chrome.
+      // ==================================================
+      // TEXTO TEMPORAL
+      // ==================================================
+
       if (textoTemporal) {
         console.log("Escuchando:", textoTemporal);
       }
     };
 
-    // ------------------------------------------------
-    // SI OCURRE UN ERROR
-    // ------------------------------------------------
+    // ==================================================
+    // ERRORES DEL MICRÓFONO
+    // ==================================================
 
     reconocimiento.onerror = (event) => {
       console.error("Error de reconocimiento:", event.error);
@@ -326,28 +455,100 @@ function Sala() {
       }
     };
 
-    // ------------------------------------------------
-    // CUANDO TERMINA LA ESCUCHA
-    // ------------------------------------------------
+    // Cuando termina la escucha.
 
     reconocimiento.onend = () => {
       setEscuchando(false);
     };
 
-    // Guardamos el reconocedor
-    // para poder usarlo desde el botón.
+    // Guardamos el objeto para poder
+    // utilizarlo desde el botón.
+
     reconocimientoRef.current = reconocimiento;
 
-    // Si salimos de la pantalla,
+    // Cuando abandonamos la pantalla,
     // detenemos el micrófono.
+
     return () => {
       reconocimiento.stop();
     };
   }, []);
+  // ==================================================
+  // GUARDAR DETECCIÓN EN SUPABASE
+  // ==================================================
+  //
+  // Esta función recibe una referencia detectada.
+  //
+  // Ejemplo:
+  //
+  // {
+  //   libro: "Salmos",
+  //   capitulo: 23,
+  //   versiculo: 1,
+  //   referencia: "Salmos 23:1"
+  // }
+  //
+  // Después guarda quién la detectó,
+  // en qué sala y desde qué dispositivo.
+  // ==================================================
 
-  // --------------------------------------------------
+  async function guardarDeteccion(referencia) {
+    try {
+      // Obtenemos al usuario que tiene
+      // la sesión iniciada.
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        console.error(
+          "No hay un usuario autenticado para guardar la detección.",
+        );
+
+        return;
+      }
+
+      // Construimos exactamente la información
+      // que necesita nuestra tabla detecciones.
+
+      const nuevaDeteccion = {
+        sala_id: id,
+
+        dispositivo_id: dispositivoIdRef.current,
+
+        usuario_id: user.id,
+
+        libro: referencia.libro,
+
+        capitulo: referencia.capitulo,
+
+        versiculo: referencia.versiculo,
+
+        referencia: referencia.referencia,
+      };
+
+      console.log("Guardando detección en Supabase:", nuevaDeteccion);
+
+      const { data, error: errorDeteccion } = await supabase
+        .from("detecciones")
+        .insert(nuevaDeteccion)
+        .select()
+        .single();
+
+      if (errorDeteccion) {
+        console.error("Error al guardar detección:", errorDeteccion);
+
+        return;
+      }
+
+      console.log("Detección guardada correctamente:", data);
+    } catch (errorGuardar) {
+      console.error("Error inesperado al guardar detección:", errorGuardar);
+    }
+  }
+  // ==================================================
   // INICIAR / DETENER ESCUCHA
-  // --------------------------------------------------
+  // ==================================================
 
   function cambiarEscucha() {
     const reconocimiento = reconocimientoRef.current;
@@ -358,8 +559,9 @@ function Sala() {
 
     setErrorMicrofono("");
 
-    // Si ya está escuchando,
+    // Si está escuchando,
     // lo detenemos.
+
     if (escuchando) {
       reconocimiento.stop();
 
@@ -369,7 +571,8 @@ function Sala() {
     }
 
     // Si está detenido,
-    // comenzamos a escuchar.
+    // comenzamos.
+
     try {
       reconocimiento.start();
 
@@ -379,9 +582,9 @@ function Sala() {
     }
   }
 
-  // --------------------------------------------------
+  // ==================================================
   // COPIAR CÓDIGO
-  // --------------------------------------------------
+  // ==================================================
 
   async function copiarCodigo() {
     if (!sala?.codigo) {
@@ -391,9 +594,9 @@ function Sala() {
     await navigator.clipboard.writeText(sala.codigo);
   }
 
-  // --------------------------------------------------
+  // ==================================================
   // CARGANDO
-  // --------------------------------------------------
+  // ==================================================
 
   if (cargando) {
     return (
@@ -403,9 +606,9 @@ function Sala() {
     );
   }
 
-  // --------------------------------------------------
+  // ==================================================
   // ERROR
-  // --------------------------------------------------
+  // ==================================================
 
   if (error) {
     return (
@@ -423,13 +626,15 @@ function Sala() {
     );
   }
 
-  // --------------------------------------------------
-  // PANTALLA
-  // --------------------------------------------------
+  // ==================================================
+  // PANTALLA PRINCIPAL
+  // ==================================================
 
   return (
     <main className="sala-page">
-      {/* Encabezado */}
+      {/* ==============================================
+          ENCABEZADO
+          ============================================== */}
 
       <header className="sala-header">
         <button
@@ -449,7 +654,9 @@ function Sala() {
       </header>
 
       <section className="sala-content">
-        {/* Estado */}
+        {/* ==============================================
+            ESTADO DE LA SALA
+            ============================================== */}
 
         <div className="sala-status">
           <span className="sala-status-dot"></span>
@@ -463,7 +670,9 @@ function Sala() {
           Comparte el código para que otras personas puedan unirse a esta sala.
         </p>
 
-        {/* Código */}
+        {/* ==============================================
+            CÓDIGO DE LA SALA
+            ============================================== */}
 
         <div className="sala-code-card">
           <div>
@@ -481,7 +690,9 @@ function Sala() {
           </button>
         </div>
 
-        {/* Dispositivos conectados */}
+        {/* ==============================================
+            DISPOSITIVOS CONECTADOS
+            ============================================== */}
 
         <div className="sala-info-card">
           <div className="sala-info-icon">
@@ -495,7 +706,9 @@ function Sala() {
           </div>
         </div>
 
-        {/* Reconocimiento de voz */}
+        {/* ==============================================
+            MICRÓFONO
+            ============================================== */}
 
         <div className="sala-listening-card">
           <div
@@ -505,12 +718,14 @@ function Sala() {
                 : "sala-listening-icon"
             }
           >
-            {/* Ondas del micrófono */}
+            {/* Ondas */}
 
             {escuchando && (
               <>
                 <span className="mic-wave mic-wave-1"></span>
+
                 <span className="mic-wave mic-wave-2"></span>
+
                 <span className="mic-wave mic-wave-3"></span>
               </>
             )}
@@ -540,14 +755,14 @@ function Sala() {
             {escuchando ? "Detener escucha" : "Iniciar escucha"}
           </button>
 
-          {/* Error del micrófono */}
-
           {errorMicrofono && (
             <p className="sala-microphone-error">{errorMicrofono}</p>
           )}
         </div>
 
-        {/* Transcripción */}
+        {/* ==============================================
+            TRANSCRIPCIÓN
+            ============================================== */}
 
         <div className="sala-transcription-section">
           <div className="sala-section-title">
@@ -567,7 +782,9 @@ function Sala() {
           </div>
         </div>
 
-        {/* Último versículo detectado */}
+        {/* ==============================================
+            ÚLTIMO VERSÍCULO
+            ============================================== */}
 
         <div className="sala-verse-section">
           <div className="sala-section-title">
@@ -587,8 +804,6 @@ function Sala() {
 
                 <strong>{versiculoDetectado.referencia}</strong>
 
-                {/* Texto recibido desde la API */}
-
                 {textoVersiculo && (
                   <>
                     <p className="sala-verse-text">{textoVersiculo.texto}</p>
@@ -605,6 +820,43 @@ function Sala() {
               <BookOpen size={25} />
 
               <p>Todavía no se ha detectado ningún versículo.</p>
+            </div>
+          )}
+        </div>
+
+        {/* ==============================================
+            HISTORIAL DE VERSÍCULOS
+            ============================================== */}
+
+        <div className="sala-history-section">
+          <div className="sala-section-title">
+            <BookOpen size={19} />
+
+            <h3>Versículos del culto</h3>
+          </div>
+
+          {historialVersiculos.length > 0 ? (
+            <div className="sala-history-list">
+              {historialVersiculos.map((versiculo, index) => (
+                <div
+                  className="sala-history-item"
+                  key={`${versiculo.referencia}-${index}`}
+                >
+                  <div className="sala-history-number">{index + 1}</div>
+
+                  <div className="sala-history-info">
+                    <strong>{versiculo.referencia}</strong>
+
+                    <span>Detectado durante la predicación</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="sala-history-empty">
+              <BookOpen size={23} />
+
+              <p>Los versículos detectados aparecerán aquí.</p>
             </div>
           )}
         </div>
