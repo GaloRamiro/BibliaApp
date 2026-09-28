@@ -758,3 +758,34 @@
   font-size: 22px;
   font-weight: 800;
 }
+
+/* ==================================================
+   TEXTO DEL VERSÍCULO
+   ================================================== */
+
+.sala-detected-content {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+}
+
+.sala-verse-text {
+  margin: 10px 0 0;
+
+  color: var(--text-primary);
+
+  font-size: 15px;
+  line-height: 1.7;
+  font-weight: 500;
+}
+
+.sala-verse-version {
+  margin-top: 5px;
+
+  color: var(--text-secondary);
+
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}

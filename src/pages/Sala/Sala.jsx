@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-
+import { buscarVersiculo } from "../../services/bibliaService";
 import {
   ArrowLeft,
   Radio,
@@ -44,6 +44,8 @@ function Sala() {
   const [transcripcion, setTranscripcion] = useState("");
   // Aquí guardaremos la última referencia bíblica detectada.
   const [versiculoDetectado, setVersiculoDetectado] = useState(null);
+  // Aquí guardaremos el texto que devuelve la API bíblica.
+  const [textoVersiculo, setTextoVersiculo] = useState(null);
 
   // Mensaje relacionado con el micrófono.
   const [errorMicrofono, setErrorMicrofono] = useState("");
@@ -218,7 +220,25 @@ function Sala() {
         if (referenciaEncontrada) {
           console.log("Versículo detectado:", referenciaEncontrada);
 
+          // Primero mostramos la referencia.
+          // Ejemplo: Juan 3:16
           setVersiculoDetectado(referenciaEncontrada);
+
+          // Buscamos el texto real del versículo
+          // utilizando nuestro servicio.
+          buscarVersiculo(
+            referenciaEncontrada.libro,
+            referenciaEncontrada.capitulo,
+            referenciaEncontrada.versiculo,
+          ).then((resultado) => {
+            console.log("Texto bíblico recibido:", resultado);
+
+            // Si la API encontró el versículo,
+            // lo guardamos en React.
+            if (resultado) {
+              setTextoVersiculo(resultado);
+            }
+          });
         }
       }
 
@@ -491,10 +511,20 @@ function Sala() {
                 <BookOpen size={23} />
               </div>
 
-              <div>
+              <div className="sala-detected-content">
                 <span>Referencia detectada</span>
 
                 <strong>{versiculoDetectado.referencia}</strong>
+
+                {textoVersiculo && (
+                  <>
+                    <p className="sala-verse-text">{textoVersiculo.texto}</p>
+
+                    <small className="sala-verse-version">
+                      {textoVersiculo.version}
+                    </small>
+                  </>
+                )}
               </div>
             </div>
           ) : (
