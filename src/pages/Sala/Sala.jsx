@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+
 import { useNavigate, useParams } from "react-router-dom";
+
 import { buscarVersiculo } from "../../services/bibliaService";
+
 import {
   ArrowLeft,
   Radio,
@@ -12,7 +15,9 @@ import {
 } from "lucide-react";
 
 import { supabase } from "../../lib/supabase";
-import { detectarVersiculo } from "../../utils/detectarVersiculo";
+
+import { detectarVersiculos } from "../../utils/detectarVersiculo";
+
 import "./Sala.css";
 
 function Sala() {
@@ -42,9 +47,28 @@ function Sala() {
 
   // Aquí guardaremos todo lo que el navegador entienda.
   const [transcripcion, setTranscripcion] = useState("");
+
   // Aquí guardaremos la última referencia bíblica detectada.
+  //
+  // Ejemplo:
+  //
+  // {
+  //   libro: "Juan",
+  //   capitulo: 3,
+  //   versiculo: 16,
+  //   referencia: "Juan 3:16"
+  // }
   const [versiculoDetectado, setVersiculoDetectado] = useState(null);
+
   // Aquí guardaremos el texto que devuelve la API bíblica.
+  //
+  // Ejemplo:
+  //
+  // {
+  //   referencia: "Juan 3:16",
+  //   texto: "...",
+  //   version: "RVR1909"
+  // }
   const [textoVersiculo, setTextoVersiculo] = useState(null);
 
   // Mensaje relacionado con el micrófono.
@@ -104,10 +128,12 @@ function Sala() {
         return;
       }
 
-      // Cada pestaña/dispositivo tendrá su propio ID.
+      // Cada pestaña o dispositivo tendrá
+      // su propio identificador.
       const dispositivoId = crypto.randomUUID();
 
-      // Creamos un canal diferente para cada sala.
+      // Creamos un canal diferente
+      // para cada sala.
       canal = supabase.channel(`sala:${id}`, {
         config: {
           presence: {
@@ -117,7 +143,7 @@ function Sala() {
       });
 
       // Cuando cambia la presencia,
-      // volvemos a contar los dispositivos.
+      // contamos nuevamente los dispositivos.
       canal.on(
         "presence",
         {
@@ -132,6 +158,7 @@ function Sala() {
         },
       );
 
+      // Nos suscribimos al canal.
       canal.subscribe(async (estado) => {
         if (estado === "SUBSCRIBED") {
           await canal.track({
@@ -161,12 +188,13 @@ function Sala() {
   // --------------------------------------------------
 
   useEffect(() => {
-    // Algunos navegadores usan SpeechRecognition.
+    // Algunos navegadores utilizan SpeechRecognition.
     // Chrome normalmente utiliza webkitSpeechRecognition.
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    // Si el navegador no soporta esta tecnología.
+    // Si el navegador no soporta
+    // reconocimiento de voz.
     if (!SpeechRecognition) {
       setErrorMicrofono("Este navegador no soporta reconocimiento de voz.");
 
@@ -179,10 +207,10 @@ function Sala() {
     // Queremos seguir escuchando.
     reconocimiento.continuous = true;
 
-    // Queremos resultados parciales mientras hablamos.
+    // También queremos resultados parciales.
     reconocimiento.interimResults = true;
 
-    // Idioma del reconocimiento.
+    // Español de Ecuador.
     reconocimiento.lang = "es-EC";
 
     // ------------------------------------------------
@@ -194,13 +222,13 @@ function Sala() {
 
       let textoTemporal = "";
 
-      // event.results contiene todos los fragmentos
-      // que el navegador ha reconocido.
+      // event.results contiene los fragmentos
+      // que Chrome está reconociendo.
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const texto = event.results[i][0].transcript;
 
-        // isFinal significa que el navegador
-        // considera terminado ese fragmento.
+        // Si Chrome considera terminado
+        // el fragmento, pasa a textoFinal.
         if (event.results[i].isFinal) {
           textoFinal += texto + " ";
         } else {
@@ -208,33 +236,64 @@ function Sala() {
         }
       }
 
+      // ------------------------------------------------
+      // CUANDO TENEMOS TEXTO FINAL
+      // ------------------------------------------------
+
       if (textoFinal) {
-        // Agregamos lo reconocido a la transcripción.
+        // Agregamos el texto reconocido
+        // a la transcripción completa.
         setTranscripcion((textoAnterior) => textoAnterior + textoFinal);
 
-        // Enviamos el texto al detector bíblico.
-        const referenciaEncontrada = detectarVersiculo(textoFinal);
+        // ----------------------------------------------
+        // BUSCAR TODAS LAS REFERENCIAS BÍBLICAS
+        // ----------------------------------------------
 
-        // Si encontró una referencia,
-        // la guardamos en React.
-        if (referenciaEncontrada) {
-          console.log("Versículo detectado:", referenciaEncontrada);
+        const referenciasEncontradas = detectarVersiculos(textoFinal);
 
-          // Primero mostramos la referencia.
-          // Ejemplo: Juan 3:16
-          setVersiculoDetectado(referenciaEncontrada);
+        console.log("Referencias encontradas:", referenciasEncontradas);
 
-          // Buscamos el texto real del versículo
-          // utilizando nuestro servicio.
+        // Si encontramos una o varias referencias...
+        if (referenciasEncontradas.length > 0) {
+          // Tomamos la última.
+          //
+          // Ejemplo:
+          //
+          // [
+          //   Juan 3:16,
+          //   Romanos 8:28,
+          //   Mateo 5:14
+          // ]
+          //
+          // Resultado:
+          // Mateo 5:14
+
+          const ultimaReferencia =
+            referenciasEncontradas[referenciasEncontradas.length - 1];
+
+          console.log("Último versículo detectado:", ultimaReferencia);
+
+          // Mostramos inmediatamente
+          // la referencia encontrada.
+          setVersiculoDetectado(ultimaReferencia);
+
+          // Limpiamos el texto anterior
+          // mientras esperamos la API.
+          setTextoVersiculo(null);
+
+          // --------------------------------------------
+          // CONSULTAR EL TEXTO REAL DEL VERSÍCULO
+          // --------------------------------------------
+
           buscarVersiculo(
-            referenciaEncontrada.libro,
-            referenciaEncontrada.capitulo,
-            referenciaEncontrada.versiculo,
+            ultimaReferencia.libro,
+            ultimaReferencia.capitulo,
+            ultimaReferencia.versiculo,
           ).then((resultado) => {
             console.log("Texto bíblico recibido:", resultado);
 
-            // Si la API encontró el versículo,
-            // lo guardamos en React.
+            // Si la API respondió correctamente,
+            // guardamos el texto.
             if (resultado) {
               setTextoVersiculo(resultado);
             }
@@ -242,8 +301,10 @@ function Sala() {
         }
       }
 
-      // El texto temporal lo mostramos en consola
-      // por ahora para entender cómo funciona.
+      // El texto temporal todavía no lo mostramos
+      // en pantalla.
+      // Lo dejamos en consola para observar
+      // cómo trabaja Chrome.
       if (textoTemporal) {
         console.log("Escuchando:", textoTemporal);
       }
@@ -273,7 +334,8 @@ function Sala() {
       setEscuchando(false);
     };
 
-    // Guardamos el reconocedor.
+    // Guardamos el reconocedor
+    // para poder usarlo desde el botón.
     reconocimientoRef.current = reconocimiento;
 
     // Si salimos de la pantalla,
@@ -368,6 +430,7 @@ function Sala() {
   return (
     <main className="sala-page">
       {/* Encabezado */}
+
       <header className="sala-header">
         <button
           type="button"
@@ -387,6 +450,7 @@ function Sala() {
 
       <section className="sala-content">
         {/* Estado */}
+
         <div className="sala-status">
           <span className="sala-status-dot"></span>
 
@@ -400,6 +464,7 @@ function Sala() {
         </p>
 
         {/* Código */}
+
         <div className="sala-code-card">
           <div>
             <span>Código de la sala</span>
@@ -417,6 +482,7 @@ function Sala() {
         </div>
 
         {/* Dispositivos conectados */}
+
         <div className="sala-info-card">
           <div className="sala-info-icon">
             <Users size={22} />
@@ -430,6 +496,7 @@ function Sala() {
         </div>
 
         {/* Reconocimiento de voz */}
+
         <div className="sala-listening-card">
           <div
             className={
@@ -438,7 +505,8 @@ function Sala() {
                 : "sala-listening-icon"
             }
           >
-            {/* Ondas que aparecen cuando el micrófono está activo */}
+            {/* Ondas del micrófono */}
+
             {escuchando && (
               <>
                 <span className="mic-wave mic-wave-1"></span>
@@ -473,12 +541,14 @@ function Sala() {
           </button>
 
           {/* Error del micrófono */}
+
           {errorMicrofono && (
             <p className="sala-microphone-error">{errorMicrofono}</p>
           )}
         </div>
 
         {/* Transcripción */}
+
         <div className="sala-transcription-section">
           <div className="sala-section-title">
             <Radio size={19} />
@@ -497,7 +567,8 @@ function Sala() {
           </div>
         </div>
 
-        {/* Versículo */}
+        {/* Último versículo detectado */}
+
         <div className="sala-verse-section">
           <div className="sala-section-title">
             <BookOpen size={19} />
@@ -515,6 +586,8 @@ function Sala() {
                 <span>Referencia detectada</span>
 
                 <strong>{versiculoDetectado.referencia}</strong>
+
+                {/* Texto recibido desde la API */}
 
                 {textoVersiculo && (
                   <>
