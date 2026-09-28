@@ -1,0 +1,568 @@
+/* ==================================================
+   PÁGINA SALA
+   ================================================== */
+
+.sala-page {
+  min-height: 100vh;
+  max-width: 520px;
+
+  margin: 0 auto;
+
+  padding-bottom: 45px;
+
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* ==================================================
+   ENCABEZADO
+   ================================================== */
+
+.sala-header {
+  height: 72px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 15px;
+
+  padding: 0 20px;
+
+  border-bottom: 1px solid var(--border-color);
+
+  background: var(--bg-secondary);
+}
+
+.sala-back {
+  width: 42px;
+  height: 42px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid var(--border-color);
+  border-radius: 13px;
+
+  background: var(--bg-card);
+  color: var(--text-primary);
+
+  cursor: pointer;
+
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.sala-back:hover {
+  transform: translateX(-2px);
+
+  border-color: var(--primary);
+}
+
+.sala-header-title {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  color: var(--text-primary);
+
+  font-size: 16px;
+  font-weight: 750;
+}
+
+.sala-header-title svg {
+  color: var(--primary);
+}
+
+/* ==================================================
+   CONTENIDO
+   ================================================== */
+
+.sala-content {
+  padding: 32px 22px;
+}
+
+/* ==================================================
+   ESTADO DE LA SALA
+   ================================================== */
+
+.sala-status {
+  width: fit-content;
+
+  display: flex;
+  align-items: center;
+
+  gap: 7px;
+
+  margin-bottom: 12px;
+
+  padding: 7px 11px;
+
+  border-radius: 20px;
+
+  background: rgba(32, 178, 107, 0.12);
+
+  color: #20a866;
+
+  font-size: 12px;
+  font-weight: 750;
+
+  text-transform: capitalize;
+}
+
+.sala-status-dot {
+  width: 7px;
+  height: 7px;
+
+  border-radius: 50%;
+
+  background: #20a866;
+
+  box-shadow: 0 0 0 4px rgba(32, 178, 107, 0.12);
+}
+
+/* ==================================================
+   TÍTULO
+   ================================================== */
+
+.sala-content > h1 {
+  margin: 0;
+
+  color: var(--text-primary);
+
+  font-size: clamp(32px, 8vw, 43px);
+
+  line-height: 1.08;
+
+  letter-spacing: -1.5px;
+}
+
+.sala-description {
+  margin: 15px 0 27px;
+
+  max-width: 430px;
+
+  color: var(--text-secondary);
+
+  font-size: 14px;
+
+  line-height: 1.65;
+}
+
+/* ==================================================
+   CÓDIGO DE LA SALA
+   ================================================== */
+
+.sala-code-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 15px;
+
+  padding: 19px;
+
+  border: 1px solid var(--border-color);
+  border-radius: 18px;
+
+  background: var(--bg-card);
+
+  box-shadow: var(--shadow);
+}
+
+.sala-code-card > div {
+  display: flex;
+  flex-direction: column;
+
+  gap: 6px;
+}
+
+.sala-code-card span {
+  color: var(--text-secondary);
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sala-code-card strong {
+  color: var(--primary);
+
+  font-size: 27px;
+  font-weight: 850;
+
+  letter-spacing: 4px;
+}
+
+.sala-code-card button {
+  width: 44px;
+  height: 44px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+  border-radius: 13px;
+
+  background: rgba(57, 121, 232, 0.12);
+
+  color: var(--primary);
+
+  cursor: pointer;
+
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease;
+}
+
+.sala-code-card button:hover {
+  transform: scale(1.06);
+
+  background: rgba(57, 121, 232, 0.18);
+}
+
+.sala-code-card button:active {
+  transform: scale(0.95);
+}
+
+/* ==================================================
+   INFORMACIÓN / DISPOSITIVOS
+   ================================================== */
+
+.sala-info-card {
+  display: flex;
+  align-items: center;
+
+  gap: 14px;
+
+  margin-top: 15px;
+
+  padding: 17px 18px;
+
+  border: 1px solid var(--border-color);
+  border-radius: 17px;
+
+  background: var(--bg-card);
+}
+
+.sala-info-icon {
+  width: 44px;
+  height: 44px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 13px;
+
+  background: rgba(57, 121, 232, 0.1);
+
+  color: var(--primary);
+}
+
+.sala-info-card > div:last-child {
+  display: flex;
+  flex-direction: column;
+
+  gap: 3px;
+}
+
+.sala-info-card span {
+  color: var(--text-secondary);
+
+  font-size: 12px;
+}
+
+.sala-info-card strong {
+  color: var(--text-primary);
+
+  font-size: 20px;
+}
+
+/* ==================================================
+   ESCUCHA DEL CULTO
+   ================================================== */
+
+.sala-listening-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  margin-top: 26px;
+
+  padding: 30px 22px;
+
+  border: 1px solid var(--border-color);
+  border-radius: 21px;
+
+  background: var(--bg-card);
+
+  text-align: center;
+}
+
+.sala-listening-icon {
+  width: 65px;
+  height: 65px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 17px;
+
+  border-radius: 21px;
+
+  background: rgba(57, 121, 232, 0.12);
+
+  color: var(--primary);
+}
+
+.sala-listening-card h2 {
+  margin: 0;
+
+  color: var(--text-primary);
+
+  font-size: 20px;
+}
+
+.sala-listening-card p {
+  max-width: 330px;
+
+  margin: 9px auto 20px;
+
+  color: var(--text-secondary);
+
+  font-size: 13px;
+
+  line-height: 1.6;
+}
+
+/* ==================================================
+   BOTÓN INICIAR ESCUCHA
+   ================================================== */
+
+.sala-start-button {
+  width: 100%;
+
+  min-height: 52px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 9px;
+
+  border: none;
+  border-radius: 15px;
+
+  background: var(--primary);
+
+  color: white;
+
+  font-size: 14px;
+  font-weight: 800;
+
+  cursor: pointer;
+
+  box-shadow: 0 10px 25px rgba(57, 121, 232, 0.23);
+
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.sala-start-button:hover {
+  background: var(--primary-hover);
+
+  transform: translateY(-2px);
+
+  box-shadow: 0 13px 30px rgba(57, 121, 232, 0.28);
+}
+
+.sala-start-button:active {
+  transform: scale(0.98);
+}
+
+/* ==================================================
+   SECCIÓN VERSÍCULO
+   ================================================== */
+
+.sala-verse-section {
+  margin-top: 30px;
+}
+
+.sala-section-title {
+  display: flex;
+  align-items: center;
+
+  gap: 9px;
+
+  margin-bottom: 13px;
+
+  color: var(--text-primary);
+}
+
+.sala-section-title svg {
+  color: var(--primary);
+}
+
+.sala-section-title h3 {
+  margin: 0;
+
+  font-size: 15px;
+}
+
+/* ==================================================
+   SIN VERSÍCULO DETECTADO
+   ================================================== */
+
+.sala-empty-verse {
+  min-height: 125px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  gap: 10px;
+
+  padding: 22px;
+
+  border: 1px dashed var(--border-color);
+  border-radius: 17px;
+
+  background: var(--bg-card);
+
+  color: var(--text-secondary);
+
+  text-align: center;
+}
+
+.sala-empty-verse svg {
+  color: var(--text-secondary);
+
+  opacity: 0.7;
+}
+
+.sala-empty-verse p {
+  max-width: 260px;
+
+  margin: 0;
+
+  font-size: 13px;
+
+  line-height: 1.5;
+}
+
+/* ==================================================
+   CARGANDO
+   ================================================== */
+
+.sala-loading {
+  min-height: 100vh;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: var(--text-secondary);
+
+  font-size: 14px;
+}
+
+/* ==================================================
+   ERROR
+   ================================================== */
+
+.sala-error-page {
+  min-height: 100vh;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  padding: 30px;
+
+  text-align: center;
+}
+
+.sala-error-page h2 {
+  margin: 0 0 8px;
+
+  color: var(--text-primary);
+}
+
+.sala-error-page p {
+  margin: 0 0 20px;
+
+  color: var(--text-secondary);
+
+  font-size: 14px;
+}
+
+.sala-error-page button {
+  padding: 13px 20px;
+
+  border: none;
+  border-radius: 13px;
+
+  background: var(--primary);
+
+  color: white;
+
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+/* ==================================================
+   ESCRITORIO
+   ================================================== */
+
+@media (min-width: 768px) {
+  .sala-page {
+    min-height: calc(100vh - 50px);
+
+    margin-top: 25px;
+    margin-bottom: 25px;
+
+    border: 1px solid var(--border-color);
+    border-radius: 28px;
+
+    box-shadow: var(--shadow);
+
+    overflow: hidden;
+  }
+}
+
+/* ==================================================
+   CELULAR
+   ================================================== */
+
+@media (max-width: 420px) {
+  .sala-header {
+    padding: 0 17px;
+  }
+
+  .sala-content {
+    padding: 28px 18px;
+  }
+
+  .sala-content > h1 {
+    font-size: 34px;
+  }
+
+  .sala-code-card strong {
+    font-size: 24px;
+
+    letter-spacing: 3px;
+  }
+}
