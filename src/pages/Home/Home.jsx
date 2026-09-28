@@ -82,7 +82,11 @@ function Home() {
             Crear sala
           </button>
 
-          <button type="button" className="home-secondary-button">
+          <button
+            type="button"
+            className="home-secondary-button"
+            onClick={() => navigate("/unirse-sala")}
+          >
             Unirme a una sala
           </button>
         </div>

@@ -5,6 +5,7 @@ import Auth from "./pages/Auth/Auth";
 import Perfil from "./pages/Perfil/Perfil";
 import CrearSala from "./pages/CrearSala/CrearSala";
 import Sala from "./pages/Sala/Sala";
+import UnirseSala from "./pages/UnirseSala/UnirseSala";
 import ProtectedRoute from "./components/ProtectedRoute/ProtectedRoute";
 
 function App() {
@@ -38,6 +39,15 @@ function App() {
           element={
             <ProtectedRoute>
               <Sala />
+            </ProtectedRoute>
+          }
+        />
+        {/* Unirse a una sala */}
+        <Route
+          path="/unirse-sala"
+          element={
+            <ProtectedRoute>
+              <UnirseSala />
             </ProtectedRoute>
           }
         />
