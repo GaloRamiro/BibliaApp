@@ -1,54 +1,67 @@
-import "./App.css";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+
+import Home from "./pages/Home/Home";
+import Auth from "./pages/Auth/Auth";
+import Perfil from "./pages/Perfil/Perfil";
+import CrearSala from "./pages/CrearSala/CrearSala";
+import Sala from "./pages/Sala/Sala";
+import UnirseSala from "./pages/UnirseSala/UnirseSala";
+import ProtectedRoute from "./components/ProtectedRoute/ProtectedRoute";
 
 function App() {
   return (
-    <main className="app">
-      <section className="hero">
-        <div className="hero-content">
-          <span className="badge">✦ Versículo en Vivo</span>
+    <BrowserRouter>
+      <Routes>
+        {/* Login y registro */}
+        <Route path="/login" element={<Auth />} />
 
-          <h1>
-            La Palabra de Dios,
-            <br />
-            <span>en el momento.</span>
-          </h1>
+        {/* Home */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Home />
+            </ProtectedRoute>
+          }
+        />
 
-          <p>
-            Una nueva forma de vivir la predicación. Conecta tu celular,
-            escucha el mensaje y recibe los versículos en tiempo real.
-          </p>
-
-          <div className="hero-actions">
-            <button className="primary-button">
-              Crear una sala
-            </button>
-
-            <button className="secondary-button">
-              Unirme a una sala
-            </button>
-          </div>
-        </div>
-
-        <div className="hero-visual">
-          <div className="bible-card">
-            <div className="bible-icon">📖</div>
-
-            <span className="reference">JUAN 3:16</span>
-
-            <p>
-              Porque de tal manera amó Dios al mundo, que ha dado a su Hijo
-              unigénito, para que todo aquel que en él cree, no se pierda,
-              mas tenga vida eterna.
-            </p>
-
-            <div className="live-status">
-              <span></span>
-              EN VIVO
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
+        {/* Crear una nueva sala */}
+        <Route
+          path="/crear-sala"
+          element={
+            <ProtectedRoute>
+              <CrearSala />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/sala/:id"
+          element={
+            <ProtectedRoute>
+              <Sala />
+            </ProtectedRoute>
+          }
+        />
+        {/* Unirse a una sala */}
+        <Route
+          path="/unirse-sala"
+          element={
+            <ProtectedRoute>
+              <UnirseSala />
+            </ProtectedRoute>
+          }
+        />
+        {/* Perfil */}
+        <Route
+          path="/perfil"
+          element={
+            <ProtectedRoute>
+              <Perfil />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

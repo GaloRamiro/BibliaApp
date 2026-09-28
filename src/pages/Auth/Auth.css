@@ -1,0 +1,590 @@
+/* ==================================================
+   PÁGINA COMPLETA
+   ================================================== */
+
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 24px;
+
+  background:
+    radial-gradient(
+      circle at 15% 15%,
+      rgba(57, 121, 232, 0.12),
+      transparent 30%
+    ),
+    var(--bg-primary);
+}
+
+/* ==================================================
+   CONTENEDOR PRINCIPAL
+   ================================================== */
+
+.auth-container {
+  position: relative;
+
+  width: 100%;
+  max-width: 900px;
+  min-height: 610px;
+
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+
+  background: var(--bg-secondary);
+
+  border: 1px solid var(--border-color);
+  border-radius: 30px;
+
+  overflow: hidden;
+
+  box-shadow: var(--shadow);
+}
+
+/* ==================================================
+   ZONA DEL FORMULARIO
+   ================================================== */
+
+.auth-form-area {
+  grid-column: 1;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 45px;
+
+  transition:
+    transform 0.6s ease,
+    opacity 0.4s ease;
+}
+
+.auth-form-wrapper {
+  width: 100%;
+  max-width: 350px;
+}
+
+/* ==================================================
+   LOGO
+   ================================================== */
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  margin-bottom: 42px;
+
+  color: var(--text-primary);
+  font-weight: 800;
+}
+
+.auth-logo {
+  width: 44px;
+  height: 44px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 14px;
+
+  background: var(--primary);
+  color: white;
+}
+
+/* ==================================================
+   ENCABEZADO
+   ================================================== */
+
+.auth-heading {
+  margin-bottom: 28px;
+}
+
+.auth-heading p {
+  margin: 0 0 7px;
+
+  color: var(--text-secondary);
+
+  font-size: 14px;
+}
+
+.auth-heading h1 {
+  margin: 0;
+
+  color: var(--text-primary);
+
+  font-size: 34px;
+  letter-spacing: -1px;
+}
+
+/* ==================================================
+   FORMULARIO
+   ================================================== */
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+
+  gap: 18px;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+
+  gap: 8px;
+}
+
+.auth-field label {
+  color: var(--text-primary);
+
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* ==================================================
+   INPUTS
+   ================================================== */
+
+.auth-input {
+  height: 52px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  padding: 0 15px;
+
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+
+  background: var(--bg-card);
+  color: var(--text-secondary);
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.auth-input:focus-within {
+  border-color: var(--primary);
+
+  box-shadow: 0 0 0 4px rgba(57, 121, 232, 0.1);
+}
+
+.auth-input input {
+  width: 100%;
+
+  border: none;
+  outline: none;
+
+  background: transparent;
+
+  color: var(--text-primary);
+
+  font-size: 14px;
+}
+
+.auth-input input::placeholder {
+  color: var(--text-secondary);
+}
+
+/* ==================================================
+   MOSTRAR CONTRASEÑA
+   ================================================== */
+
+.password-button {
+  border: none;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 5px;
+
+  background: transparent;
+
+  color: var(--text-secondary);
+
+  cursor: pointer;
+}
+
+/* ==================================================
+   BOTÓN PRINCIPAL
+   ================================================== */
+
+.auth-submit {
+  min-height: 52px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 9px;
+
+  margin-top: 4px;
+
+  border: none;
+  border-radius: 14px;
+
+  background: var(--primary);
+
+  color: white;
+
+  font-weight: 800;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.auth-submit:hover {
+  background: var(--primary-hover);
+
+  transform: translateY(-2px);
+}
+
+.auth-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ==================================================
+   MENSAJES
+   ================================================== */
+
+.auth-error {
+  margin: 0;
+
+  padding: 11px 13px;
+
+  border-radius: 11px;
+
+  background: rgba(220, 53, 69, 0.1);
+
+  color: #d94b59;
+
+  font-size: 13px;
+}
+
+.auth-success {
+  margin: 0;
+
+  padding: 11px 13px;
+
+  border-radius: 11px;
+
+  background: rgba(35, 170, 95, 0.1);
+
+  color: #25a563;
+
+  font-size: 13px;
+}
+
+/* ==================================================
+   PANEL AZUL
+   ================================================== */
+
+.auth-panel {
+  position: absolute;
+
+  top: 0;
+  right: 0;
+
+  width: 50%;
+  height: 100%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 50px;
+
+  background: linear-gradient(145deg, var(--primary), #245fc9);
+
+  color: white;
+
+  transition: transform 0.65s cubic-bezier(0.77, 0, 0.18, 1);
+
+  z-index: 5;
+}
+
+/* ==================================================
+   CONTENIDO PANEL
+   ================================================== */
+
+.auth-panel-content {
+  max-width: 300px;
+
+  text-align: center;
+}
+
+.auth-panel-content > svg {
+  margin-bottom: 24px;
+}
+
+.auth-panel-content h2 {
+  margin: 0 0 14px;
+
+  font-size: 32px;
+
+  letter-spacing: -1px;
+}
+
+.auth-panel-content p {
+  margin: 0 0 30px;
+
+  line-height: 1.7;
+
+  opacity: 0.85;
+
+  font-size: 14px;
+}
+
+/* ==================================================
+   BOTÓN DEL PANEL
+   ================================================== */
+
+.auth-change-button {
+  min-width: 180px;
+
+  padding: 13px 22px;
+
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 14px;
+
+  background: transparent;
+
+  color: white;
+
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.auth-change-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+
+  transform: translateY(-2px);
+}
+
+/* ==================================================
+   ANIMACIÓN LOGIN ↔ REGISTRO
+   ================================================== */
+
+/*
+  El panel azul utiliza una curva más natural.
+  Empieza suave, acelera y termina suave.
+*/
+.auth-panel {
+  transition:
+    transform 0.75s cubic-bezier(0.76, 0, 0.24, 1),
+    border-radius 0.75s cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+/* Cuando pasamos a registro,
+   el panel azul viaja a la izquierda. */
+.auth-container.register-active .auth-panel {
+  transform: translateX(-100%);
+}
+
+/* El formulario viaja hacia la derecha. */
+.auth-form-area {
+  transition: transform 0.75s cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+.auth-container.register-active .auth-form-area {
+  transform: translateX(100%);
+}
+
+/* ==================================================
+   ANIMACIÓN DEL CONTENIDO DEL FORMULARIO
+   ================================================== */
+
+.auth-form-wrapper {
+  animation: aparecerFormulario 0.55s ease;
+}
+
+@keyframes aparecerFormulario {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==================================================
+   ANIMACIÓN DEL CONTENIDO AZUL
+   ================================================== */
+
+.auth-panel-content {
+  animation: aparecerPanel 0.7s ease;
+}
+
+@keyframes aparecerPanel {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ==================================================
+   BOTONES
+   ================================================== */
+
+.auth-submit,
+.auth-change-button {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.auth-submit:hover {
+  transform: translateY(-2px);
+
+  box-shadow: 0 10px 25px rgba(57, 121, 232, 0.25);
+}
+
+.auth-submit:active {
+  transform: scale(0.98);
+}
+
+.auth-change-button:hover {
+  transform: translateY(-2px);
+
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.auth-change-button:active {
+  transform: scale(0.97);
+}
+
+/* ==================================================
+   INPUTS
+   ================================================== */
+
+.auth-input {
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.25s ease;
+}
+
+.auth-input:focus-within {
+  border-color: var(--primary);
+
+  box-shadow: 0 0 0 4px rgba(57, 121, 232, 0.1);
+
+  transform: translateY(-1px);
+}
+
+
+/* ==================================================
+   MODO OSCURO
+   ================================================== */
+
+[data-theme="dark"] .auth-container {
+  background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .auth-input {
+  background: var(--bg-card);
+}
+
+/* ==================================================
+   CELULAR
+   ================================================== */
+
+@media (max-width: 700px) {
+  .auth-page {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .auth-container {
+    min-height: 100vh;
+
+    display: flex;
+    flex-direction: column;
+
+    border: none;
+    border-radius: 0;
+  }
+
+  .auth-form-area {
+    order: 2;
+
+    width: 100%;
+
+    padding: 35px 22px;
+
+    transform: none !important;
+  }
+
+  .auth-form-wrapper {
+    max-width: 430px;
+
+    margin: 0 auto;
+  }
+
+  .auth-brand {
+    margin-bottom: 30px;
+  }
+
+  .auth-heading h1 {
+    font-size: 30px;
+  }
+
+  /*
+     En celular el panel no viaja de izquierda
+     a derecha porque no tenemos dos columnas.
+
+     Lo colocamos arriba.
+  */
+
+  .auth-panel {
+    position: relative;
+
+    order: 1;
+
+    width: 100%;
+    height: auto;
+
+    min-height: 230px;
+
+    padding: 35px 25px;
+
+    transform: none !important;
+
+    border-radius: 0 0 35px 35px;
+  }
+
+  .auth-panel-content h2 {
+    font-size: 27px;
+  }
+
+  .auth-panel-content p {
+    margin-bottom: 20px;
+  }
+}

@@ -1,0 +1,37 @@
+/* Contenedor general de nuestra aplicación móvil */
+.app-layout {
+  width: 100%;
+  max-width: 520px;
+
+  min-height: 100vh;
+
+  margin: 0 auto;
+
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+
+  position: relative;
+}
+
+/* Zona donde React Router cambia las páginas */
+.page-content {
+  padding-bottom: 95px;
+}
+
+
+/* En escritorio mostramos la aplicación como una tarjeta */
+@media (min-width: 768px) {
+  .app-layout {
+    min-height: calc(100vh - 50px);
+
+    margin-top: 25px;
+    margin-bottom: 25px;
+
+    border: 1px solid var(--border-color);
+    border-radius: 28px;
+
+    box-shadow: var(--shadow);
+
+    overflow: hidden;
+  }
+}

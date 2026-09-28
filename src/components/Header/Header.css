@@ -1,0 +1,71 @@
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  padding: 22px 20px 10px;
+}
+
+/* Textos */
+
+.header-text small {
+  display: block;
+
+  color: var(--text-secondary);
+
+  font-size: 12px;
+  font-weight: 600;
+
+  margin-bottom: 4px;
+}
+
+.header-text h2 {
+  margin: 0;
+
+  color: var(--text-primary);
+
+  font-size: 21px;
+  font-weight: 750;
+}
+
+/* Contenedor de los botones del Header */
+.header-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Botones del Header */
+.header-button {
+  width: 42px;
+  height: 42px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.header-button:hover {
+  transform: translateY(-2px);
+}
+
+.notification-button:hover {
+  transform: translateY(-2px);
+}

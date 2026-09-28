@@ -1,0 +1,100 @@
+/* =========================================================
+   TARJETA DE VERSÍCULO
+   ========================================================= */
+
+.verse-card {
+  margin-top: 30px;
+  padding: 22px;
+
+  background: var(--bg-card);
+
+  border: 1px solid var(--border-color);
+  border-radius: 22px;
+
+  box-shadow: var(--shadow);
+}
+
+/* Encabezado */
+
+.verse-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 22px;
+}
+
+/* Icono Biblia */
+
+.verse-icon {
+  width: 44px;
+  height: 44px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 14px;
+
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+
+  color: var(--primary);
+}
+
+/* Indicador EN VIVO */
+
+.verse-live {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  color: var(--primary);
+
+  font-size: 11px;
+  font-weight: 800;
+
+  letter-spacing: 1px;
+}
+
+/* Referencia */
+
+.verse-reference {
+  margin: 0 0 13px;
+
+  color: var(--text-primary);
+
+  font-size: 25px;
+}
+
+/* Texto bíblico */
+
+.verse-text {
+  margin: 0;
+
+  color: var(--text-secondary);
+
+  font-family: Georgia, "Times New Roman", serif;
+
+  font-size: 17px;
+  line-height: 1.7;
+}
+
+/* Ver capítulo */
+
+.verse-link {
+  margin-top: 20px;
+  padding: 0;
+
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  border: none;
+  background: transparent;
+
+  color: var(--primary);
+
+  font-weight: 700;
+
+  cursor: pointer;
+}
