@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 import { supabase } from "../../lib/supabase";
-
+import { detectarVersiculo } from "../../utils/detectarVersiculo";
 import "./Sala.css";
 
 function Sala() {
@@ -42,6 +42,8 @@ function Sala() {
 
   // Aquí guardaremos todo lo que el navegador entienda.
   const [transcripcion, setTranscripcion] = useState("");
+  // Aquí guardaremos la última referencia bíblica detectada.
+  const [versiculoDetectado, setVersiculoDetectado] = useState(null);
 
   // Mensaje relacionado con el micrófono.
   const [errorMicrofono, setErrorMicrofono] = useState("");
@@ -204,10 +206,20 @@ function Sala() {
         }
       }
 
-      // Guardamos solamente los fragmentos finales
-      // en nuestro historial.
       if (textoFinal) {
+        // Agregamos lo reconocido a la transcripción.
         setTranscripcion((textoAnterior) => textoAnterior + textoFinal);
+
+        // Enviamos el texto al detector bíblico.
+        const referenciaEncontrada = detectarVersiculo(textoFinal);
+
+        // Si encontró una referencia,
+        // la guardamos en React.
+        if (referenciaEncontrada) {
+          console.log("Versículo detectado:", referenciaEncontrada);
+
+          setVersiculoDetectado(referenciaEncontrada);
+        }
       }
 
       // El texto temporal lo mostramos en consola
@@ -473,11 +485,25 @@ function Sala() {
             <h3>Último versículo detectado</h3>
           </div>
 
-          <div className="sala-empty-verse">
-            <BookOpen size={25} />
+          {versiculoDetectado ? (
+            <div className="sala-detected-verse">
+              <div className="sala-detected-icon">
+                <BookOpen size={23} />
+              </div>
 
-            <p>Todavía no se ha detectado ningún versículo.</p>
-          </div>
+              <div>
+                <span>Referencia detectada</span>
+
+                <strong>{versiculoDetectado.referencia}</strong>
+              </div>
+            </div>
+          ) : (
+            <div className="sala-empty-verse">
+              <BookOpen size={25} />
+
+              <p>Todavía no se ha detectado ningún versículo.</p>
+            </div>
+          )}
         </div>
       </section>
     </main>
