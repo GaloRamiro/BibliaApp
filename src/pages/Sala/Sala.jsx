@@ -129,7 +129,18 @@ function Sala() {
   // ==================================================
 
   const dispositivoIdRef = useRef(crypto.randomUUID());
+  // ==================================================
+  // ÚLTIMA CONFIRMACIÓN GUARDADA
+  // ==================================================
+  //
+  // Evita que varios eventos Realtime provoquen
+  // que este dispositivo intente guardar muchas veces
+  // el mismo consenso seguido.
 
+  const ultimaConfirmacionRef = useRef({
+    referencia: null,
+    tiempo: 0,
+  });
   // ==================================================
   // CARGAR SALA DESDE SUPABASE
   // ==================================================
@@ -362,6 +373,179 @@ function Sala() {
     };
   }, [id]);
   // ==================================================
+  // REALTIME - VERSÍCULOS CONFIRMADOS
+  // ==================================================
+  //
+  // Este canal escucha la confirmación oficial
+  // de la sala.
+  //
+  // Cuando cualquier dispositivo consiga consenso
+  // y guarde el versículo en Supabase,
+  // TODOS los dispositivos conectados a la sala
+  // recibirán esta fila.
+  // ==================================================
+
+  useEffect(() => {
+    let activo = true;
+
+    const canalConfirmados = supabase
+      .channel(`confirmados:${id}`)
+
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+
+          schema: "public",
+
+          table: "versiculos_confirmados",
+
+          // Solo escuchamos confirmaciones
+          // pertenecientes a esta sala.
+          filter: `sala_id=eq.${id}`,
+        },
+
+        (payload) => {
+          if (!activo) {
+            return;
+          }
+
+          // La fila que acaba de insertarse
+          // en versiculos_confirmados.
+          const confirmado = payload.new;
+
+          console.log(
+            "Versículo confirmado recibido por Realtime:",
+            confirmado,
+          );
+
+          // ==================================================
+          // ACTUALIZAR CONSENSO GLOBAL
+          // ==================================================
+          //
+          // Ya no importa qué teléfono calculó
+          // originalmente el consenso.
+          //
+          // Todos reciben la confirmación oficial.
+          // ==================================================
+
+          setConsenso({
+            referencia: confirmado.referencia,
+
+            libro: confirmado.libro,
+
+            capitulo: confirmado.capitulo,
+
+            versiculo: confirmado.versiculo,
+
+            votos: confirmado.votos,
+
+            confirmadoEn: confirmado.created_at,
+          });
+        },
+      )
+
+      .subscribe((estado) => {
+        if (estado === "SUBSCRIBED") {
+          console.log("Escuchando versículos confirmados de la sala:", id);
+        }
+      });
+
+    // ==================================================
+    // LIMPIEZA
+    // ==================================================
+
+    return () => {
+      activo = false;
+
+      supabase.removeChannel(canalConfirmados);
+    };
+  }, [id]);
+  // ==================================================
+  // GUARDAR VERSÍCULO CONFIRMADO
+  // ==================================================
+
+  async function guardarVersiculoConfirmado(deteccion, votos) {
+    try {
+      const ahora = Date.now();
+
+      const ultimaConfirmacion = ultimaConfirmacionRef.current;
+
+      // ==================================================
+      // EVITAR DUPLICADOS SEGUIDOS
+      // ==================================================
+      //
+      // Si este mismo dispositivo ya confirmó
+      // la misma referencia hace menos de 10 segundos,
+      // no volvemos a insertarla.
+
+      if (
+        ultimaConfirmacion.referencia === deteccion.referencia &&
+        ahora - ultimaConfirmacion.tiempo < 10000
+      ) {
+        console.log("Confirmación duplicada ignorada:", deteccion.referencia);
+
+        return;
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        console.error("No existe un usuario autenticado.");
+
+        return;
+      }
+
+      const nuevoConfirmado = {
+        sala_id: id,
+
+        libro: deteccion.libro,
+
+        capitulo: deteccion.capitulo,
+
+        versiculo: deteccion.versiculo,
+
+        referencia: deteccion.referencia,
+
+        votos,
+
+        confirmado_por: user.id,
+      };
+
+      console.log("Guardando versículo confirmado:", nuevoConfirmado);
+
+      const { data, error: errorConfirmacion } = await supabase
+        .from("versiculos_confirmados")
+        .insert(nuevoConfirmado)
+        .select()
+        .single();
+
+      if (errorConfirmacion) {
+        console.error(
+          "Error al guardar versículo confirmado:",
+          errorConfirmacion,
+        );
+
+        return;
+      }
+
+      // Solo marcamos el bloqueo después
+      // de que Supabase confirme el INSERT.
+
+      ultimaConfirmacionRef.current = {
+        referencia: deteccion.referencia,
+
+        tiempo: ahora,
+      };
+
+      console.log("Versículo confirmado guardado:", data);
+    } catch (errorGuardar) {
+      console.error("Error inesperado guardando consenso:", errorGuardar);
+    }
+  }
+  // ==================================================
   // MOTOR DE CONSENSO
   // ==================================================
   //
@@ -478,6 +662,12 @@ function Sala() {
       console.log("CONSENSO ALCANZADO:", nuevoConsenso);
 
       setConsenso(nuevoConsenso);
+
+      // Además de mostrarlo localmente,
+      // guardamos la confirmación oficial
+      // de la sala en Supabase.
+
+      guardarVersiculoConfirmado(ultimaDeteccion, cantidadVotos);
     }
   }, [deteccionesRecientes]);
   // ==================================================
