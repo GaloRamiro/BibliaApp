@@ -5,14 +5,13 @@
 .sala-page {
   min-height: 100vh;
   max-width: 520px;
-
   margin: 0 auto;
-
   padding-bottom: 45px;
 
   background: var(--bg-secondary);
   color: var(--text-primary);
 }
+
 
 /* ==================================================
    ENCABEZADO
@@ -23,7 +22,6 @@
 
   display: flex;
   align-items: center;
-
   gap: 15px;
 
   padding: 0 20px;
@@ -32,6 +30,7 @@
 
   background: var(--bg-secondary);
 }
+
 
 .sala-back {
   width: 42px;
@@ -54,16 +53,16 @@
     border-color 0.2s ease;
 }
 
+
 .sala-back:hover {
   transform: translateX(-2px);
-
   border-color: var(--primary);
 }
+
 
 .sala-header-title {
   display: flex;
   align-items: center;
-
   gap: 8px;
 
   color: var(--text-primary);
@@ -72,9 +71,11 @@
   font-weight: 750;
 }
 
+
 .sala-header-title svg {
   color: var(--primary);
 }
+
 
 /* ==================================================
    CONTENIDO
@@ -84,8 +85,9 @@
   padding: 32px 22px;
 }
 
+
 /* ==================================================
-   ESTADO DE LA SALA
+   ESTADO
    ================================================== */
 
 .sala-status {
@@ -93,17 +95,14 @@
 
   display: flex;
   align-items: center;
-
   gap: 7px;
 
   margin-bottom: 12px;
-
   padding: 7px 11px;
 
   border-radius: 20px;
 
   background: rgba(32, 178, 107, 0.12);
-
   color: #20a866;
 
   font-size: 12px;
@@ -111,6 +110,7 @@
 
   text-transform: capitalize;
 }
+
 
 .sala-status-dot {
   width: 7px;
@@ -120,8 +120,10 @@
 
   background: #20a866;
 
-  box-shadow: 0 0 0 4px rgba(32, 178, 107, 0.12);
+  box-shadow:
+    0 0 0 4px rgba(32, 178, 107, 0.12);
 }
+
 
 /* ==================================================
    TÍTULO
@@ -135,24 +137,24 @@
   font-size: clamp(32px, 8vw, 43px);
 
   line-height: 1.08;
-
   letter-spacing: -1.5px;
 }
 
-.sala-description {
-  margin: 15px 0 27px;
 
+.sala-description {
   max-width: 430px;
+
+  margin: 15px 0 27px;
 
   color: var(--text-secondary);
 
   font-size: 14px;
-
   line-height: 1.65;
 }
 
+
 /* ==================================================
-   CÓDIGO DE LA SALA
+   CÓDIGO DE SALA
    ================================================== */
 
 .sala-code-card {
@@ -172,12 +174,13 @@
   box-shadow: var(--shadow);
 }
 
+
 .sala-code-card > div {
   display: flex;
   flex-direction: column;
-
   gap: 6px;
 }
+
 
 .sala-code-card span {
   color: var(--text-secondary);
@@ -185,6 +188,7 @@
   font-size: 12px;
   font-weight: 600;
 }
+
 
 .sala-code-card strong {
   color: var(--primary);
@@ -194,6 +198,7 @@
 
   letter-spacing: 4px;
 }
+
 
 .sala-code-card button {
   width: 44px;
@@ -209,7 +214,6 @@
   border-radius: 13px;
 
   background: rgba(57, 121, 232, 0.12);
-
   color: var(--primary);
 
   cursor: pointer;
@@ -219,24 +223,21 @@
     background 0.2s ease;
 }
 
+
 .sala-code-card button:hover {
   transform: scale(1.06);
 
   background: rgba(57, 121, 232, 0.18);
 }
 
-.sala-code-card button:active {
-  transform: scale(0.95);
-}
 
 /* ==================================================
-   INFORMACIÓN / DISPOSITIVOS
+   DISPOSITIVOS CONECTADOS
    ================================================== */
 
 .sala-info-card {
   display: flex;
   align-items: center;
-
   gap: 14px;
 
   margin-top: 15px;
@@ -248,6 +249,7 @@
 
   background: var(--bg-card);
 }
+
 
 .sala-info-icon {
   width: 44px;
@@ -262,16 +264,16 @@
   border-radius: 13px;
 
   background: rgba(57, 121, 232, 0.1);
-
   color: var(--primary);
 }
+
 
 .sala-info-card > div:last-child {
   display: flex;
   flex-direction: column;
-
   gap: 3px;
 }
+
 
 .sala-info-card span {
   color: var(--text-secondary);
@@ -279,14 +281,16 @@
   font-size: 12px;
 }
 
+
 .sala-info-card strong {
   color: var(--text-primary);
 
   font-size: 20px;
 }
 
+
 /* ==================================================
-   ESCUCHA DEL CULTO
+   TARJETA DE ESCUCHA
    ================================================== */
 
 .sala-listening-card {
@@ -306,22 +310,6 @@
   text-align: center;
 }
 
-.sala-listening-icon {
-  width: 65px;
-  height: 65px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  margin-bottom: 17px;
-
-  border-radius: 21px;
-
-  background: rgba(57, 121, 232, 0.12);
-
-  color: var(--primary);
-}
 
 .sala-listening-card h2 {
   margin: 0;
@@ -331,7 +319,8 @@
   font-size: 20px;
 }
 
-.sala-listening-card p {
+
+.sala-listening-card > p {
   max-width: 330px;
 
   margin: 9px auto 20px;
@@ -339,30 +328,159 @@
   color: var(--text-secondary);
 
   font-size: 13px;
-
   line-height: 1.6;
 }
 
+
 /* ==================================================
-   BOTÓN INICIAR ESCUCHA
+   ICONO DEL MICRÓFONO
    ================================================== */
 
-.sala-start-button {
-  width: 100%;
+.sala-listening-icon {
+  position: relative;
+  z-index: 1;
 
-  min-height: 52px;
+  width: 65px;
+  height: 65px;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
+  margin-bottom: 22px;
+
+  border-radius: 50%;
+
+  background: rgba(57, 121, 232, 0.12);
+  color: var(--primary);
+
+  transition:
+    background 0.3s ease,
+    color 0.3s ease,
+    transform 0.3s ease;
+}
+
+
+/* Micrófono activo */
+
+.sala-listening-icon.escuchando {
+  background: #dcfce7;
+  color: #16a34a;
+
+  transform: scale(1.05);
+}
+
+
+.sala-listening-icon.escuchando svg {
+  position: relative;
+  z-index: 5;
+
+  animation: micPulse 1.3s ease-in-out infinite;
+}
+
+
+/* ==================================================
+   ONDAS TIPO AGUA
+   ================================================== */
+
+.mic-wave {
+  position: absolute;
+
+  top: 50%;
+  left: 50%;
+
+  width: 62px;
+  height: 62px;
+
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  border-radius: 50%;
+
+  transform:
+    translate(-50%, -50%)
+    scale(0.95);
+
+  opacity: 0;
+
+  pointer-events: none;
+
+  z-index: -1;
+
+  animation:
+    micWaterWave 2.4s ease-out infinite;
+}
+
+
+.mic-wave-1 {
+  animation-delay: 0s;
+}
+
+
+.mic-wave-2 {
+  animation-delay: 1s;
+}
+
+
+.mic-wave-3 {
+  animation-delay: 2s;
+}
+
+
+@keyframes micWaterWave {
+
+  0% {
+    transform:
+      translate(-50%, -50%)
+      scale(0.95);
+
+    opacity: 0.4;
+  }
+
+  60% {
+    opacity: 0.12;
+  }
+
+  100% {
+    transform:
+      translate(-50%, -50%)
+      scale(1.65);
+
+    opacity: 0;
+  }
+
+}
+
+
+@keyframes micPulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.13);
+  }
+
+}
+
+
+/* ==================================================
+   BOTÓN INICIAR / DETENER
+   ================================================== */
+
+.sala-start-button {
+  width: 100%;
+  min-height: 52px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: 9px;
 
   border: none;
   border-radius: 15px;
 
   background: var(--primary);
-
   color: white;
 
   font-size: 14px;
@@ -370,38 +488,68 @@
 
   cursor: pointer;
 
-  box-shadow: 0 10px 25px rgba(57, 121, 232, 0.23);
+  box-shadow:
+    0 10px 25px rgba(57, 121, 232, 0.23);
 
   transition:
-    transform 0.2s ease,
-    background 0.2s ease,
-    box-shadow 0.2s ease;
+    background 0.3s ease,
+    box-shadow 0.3s ease,
+    transform 0.2s ease;
 }
+
 
 .sala-start-button:hover {
   background: var(--primary-hover);
 
   transform: translateY(-2px);
-
-  box-shadow: 0 13px 30px rgba(57, 121, 232, 0.28);
 }
 
-.sala-start-button:active {
-  transform: scale(0.98);
+
+/* Cuando está escuchando */
+
+.sala-start-button.escuchando {
+  background: #16a34a;
+
+  box-shadow:
+    0 10px 28px rgba(22, 163, 74, 0.28);
 }
+
+
+.sala-start-button.escuchando:hover {
+  background: #15803d;
+}
+
 
 /* ==================================================
-   SECCIÓN VERSÍCULO
+   ERROR DEL MICRÓFONO
    ================================================== */
 
-.sala-verse-section {
-  margin-top: 30px;
+.sala-microphone-error {
+  width: 100%;
+
+  margin: 15px 0 0 !important;
+
+  padding: 12px 14px;
+
+  border-radius: 12px;
+
+  background: rgba(220, 53, 69, 0.1);
+
+  color: #d94b59 !important;
+
+  font-size: 12px !important;
+
+  text-align: left;
 }
+
+
+/* ==================================================
+   TÍTULOS DE SECCIONES
+   ================================================== */
 
 .sala-section-title {
   display: flex;
   align-items: center;
-
   gap: 9px;
 
   margin-bottom: 13px;
@@ -409,9 +557,11 @@
   color: var(--text-primary);
 }
 
+
 .sala-section-title svg {
   color: var(--primary);
 }
+
 
 .sala-section-title h3 {
   margin: 0;
@@ -419,9 +569,51 @@
   font-size: 15px;
 }
 
+
 /* ==================================================
-   SIN VERSÍCULO DETECTADO
+   TRANSCRIPCIÓN EN VIVO
    ================================================== */
+
+.sala-transcription-section {
+  margin-top: 30px;
+}
+
+
+.sala-transcription-card {
+  min-height: 110px;
+
+  padding: 18px;
+
+  border: 1px solid var(--border-color);
+  border-radius: 17px;
+
+  background: var(--bg-card);
+}
+
+
+.sala-transcription-card p {
+  margin: 0;
+
+  color: var(--text-primary);
+
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+
+.sala-transcription-card .sala-transcription-empty {
+  color: var(--text-secondary);
+}
+
+
+/* ==================================================
+   VERSÍCULO
+   ================================================== */
+
+.sala-verse-section {
+  margin-top: 30px;
+}
+
 
 .sala-empty-verse {
   min-height: 125px;
@@ -445,11 +637,11 @@
   text-align: center;
 }
 
-.sala-empty-verse svg {
-  color: var(--text-secondary);
 
+.sala-empty-verse svg {
   opacity: 0.7;
 }
+
 
 .sala-empty-verse p {
   max-width: 260px;
@@ -457,9 +649,9 @@
   margin: 0;
 
   font-size: 13px;
-
   line-height: 1.5;
 }
+
 
 /* ==================================================
    CARGANDO
@@ -477,8 +669,9 @@
   font-size: 14px;
 }
 
+
 /* ==================================================
-   ERROR
+   ERROR DE SALA
    ================================================== */
 
 .sala-error-page {
@@ -494,11 +687,13 @@
   text-align: center;
 }
 
+
 .sala-error-page h2 {
   margin: 0 0 8px;
 
   color: var(--text-primary);
 }
+
 
 .sala-error-page p {
   margin: 0 0 20px;
@@ -508,6 +703,7 @@
   font-size: 14px;
 }
 
+
 .sala-error-page button {
   padding: 13px 20px;
 
@@ -515,7 +711,6 @@
   border-radius: 13px;
 
   background: var(--primary);
-
   color: white;
 
   font-weight: 700;
@@ -523,11 +718,13 @@
   cursor: pointer;
 }
 
+
 /* ==================================================
    ESCRITORIO
    ================================================== */
 
 @media (min-width: 768px) {
+
   .sala-page {
     min-height: calc(100vh - 50px);
 
@@ -541,13 +738,16 @@
 
     overflow: hidden;
   }
+
 }
+
 
 /* ==================================================
    CELULAR
    ================================================== */
 
 @media (max-width: 420px) {
+
   .sala-header {
     padding: 0 17px;
   }
@@ -562,7 +762,21 @@
 
   .sala-code-card strong {
     font-size: 24px;
-
     letter-spacing: 3px;
   }
+
+}
+
+
+/* ==================================================
+   ACCESIBILIDAD
+   ================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+
+  .mic-wave,
+  .sala-listening-icon.escuchando svg {
+    animation: none;
+  }
+
 }
