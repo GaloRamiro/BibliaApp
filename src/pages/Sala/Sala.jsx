@@ -55,6 +55,7 @@ function Sala() {
   // Última referencia detectada.
   //
   // Ejemplo:
+  //
   // {
   //   libro: "Juan",
   //   capitulo: 3,
@@ -64,7 +65,7 @@ function Sala() {
 
   const [versiculoDetectado, setVersiculoDetectado] = useState(null);
 
-  // Texto real obtenido desde la API.
+  // Texto real obtenido desde la API bíblica.
 
   const [textoVersiculo, setTextoVersiculo] = useState(null);
 
@@ -74,27 +75,49 @@ function Sala() {
   const [historialVersiculos, setHistorialVersiculos] = useState([]);
 
   // ==================================================
+  // ESTADOS DEL CONSENSO
+  // ==================================================
+
+  // Aquí iremos guardando las detecciones
+  // que lleguen desde todos los dispositivos
+  // mediante Supabase Realtime.
+
+  const [deteccionesRecientes, setDeteccionesRecientes] = useState([]);
+
+  // Más adelante aquí guardaremos algo como:
+  //
+  // {
+  //   referencia: "Salmos 23:1",
+  //   votos: 2
+  // }
+
+  const [consenso, setConsenso] = useState(null);
+
+  // ==================================================
   // REFERENCIA AL RECONOCIMIENTO DE VOZ
   // ==================================================
 
   const reconocimientoRef = useRef(null);
+
   // ==================================================
   // IDENTIFICADOR DEL DISPOSITIVO
   // ==================================================
   //
-  // Cada pestaña/dispositivo que entra a la sala
-  // tendrá su propio identificador.
+  // Cada pestaña o dispositivo obtiene
+  // un identificador diferente.
   //
-  // Lo guardamos en useRef porque queremos que
-  // permanezca igual mientras esta pantalla exista.
-  //
-  // Lo utilizaremos para:
+  // Ese MISMO identificador se utilizará para:
   //
   // 1. Presence
   // 2. Guardar detecciones
   // 3. Calcular consenso
+  //
+  // useRef permite conservar el mismo ID
+  // durante toda la vida de esta pantalla.
+  // ==================================================
 
   const dispositivoIdRef = useRef(crypto.randomUUID());
+
   // ==================================================
   // CARGAR SALA DESDE SUPABASE
   // ==================================================
@@ -132,50 +155,39 @@ function Sala() {
   // ==================================================
   // REALTIME PRESENCE
   // ==================================================
-
-  // ==================================================
-  // REALTIME PRESENCE
+  //
+  // Presence nos permite saber cuántos
+  // dispositivos están actualmente
+  // conectados a esta sala.
   // ==================================================
 
   useEffect(() => {
-    // Nos permite saber si esta ejecución del efecto
-    // todavía sigue activa.
-    //
-    // Esto es importante porque React en desarrollo
-    // puede montar y desmontar un efecto rápidamente.
     let activo = true;
 
-    // Aquí guardaremos el canal creado
-    // para poder eliminarlo al salir de la sala.
     let canal = null;
 
     async function conectarRealtime() {
-      // Primero obtenemos al usuario conectado.
+      // Obtenemos al usuario conectado.
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
-      // Mientras esperábamos a Supabase,
-      // React pudo haber desmontado este efecto.
-      //
-      // Si ocurrió eso, NO continuamos.
+      // React pudo desmontar este efecto
+      // mientras esperábamos la respuesta.
+
       if (!activo || !user) {
         return;
       }
 
-      // Utilizamos el identificador que pertenece
-      // a este dispositivo/pestaña.
+      // Utilizamos el identificador
+      // permanente de esta pestaña.
 
       const dispositivoId = dispositivoIdRef.current;
 
-      // Todos los dispositivos de esta sala utilizan
-      // EL MISMO nombre de canal.
-      //
-      // Ejemplo:
-      //
-      // sala:abc123
-      //
-      // Esto permite que todos puedan verse entre sí.
+      // Todos los dispositivos de la misma sala
+      // utilizan el mismo canal.
+
       canal = supabase.channel(`sala:${id}`, {
         config: {
           presence: {
@@ -187,14 +199,6 @@ function Sala() {
       // ==================================================
       // PRESENCE SYNC
       // ==================================================
-      //
-      // IMPORTANTE:
-      //
-      // Registramos .on() ANTES de subscribe().
-      //
-      // Cada vez que entra o sale un dispositivo,
-      // Supabase sincroniza el estado.
-      // ==================================================
 
       canal.on(
         "presence",
@@ -202,23 +206,21 @@ function Sala() {
           event: "sync",
         },
         () => {
-          // Si este efecto ya murió,
-          // no actualizamos React.
           if (!activo || !canal) {
             return;
           }
 
           const estado = canal.presenceState();
 
-          // Cada key representa un dispositivo conectado.
+          // Cada key representa
+          // un dispositivo conectado.
+
           const cantidad = Object.keys(estado).length;
 
           setConectados(cantidad);
         },
       );
 
-      // Antes de suscribirnos volvemos a comprobar
-      // que esta ejecución todavía siga activa.
       if (!activo) {
         return;
       }
@@ -228,14 +230,10 @@ function Sala() {
       // ==================================================
 
       canal.subscribe(async (estado) => {
-        // Solo hacemos track cuando Supabase
-        // confirma que ya estamos conectados.
         if (estado !== "SUBSCRIBED") {
           return;
         }
 
-        // Puede ocurrir que el efecto haya sido
-        // desmontado justo mientras conectábamos.
         if (!activo || !canal) {
           return;
         }
@@ -249,8 +247,6 @@ function Sala() {
             conectado_en: new Date().toISOString(),
           });
         } catch (errorPresence) {
-          // No mostramos errores si pertenecen
-          // a una ejecución vieja del efecto.
           if (activo) {
             console.error("Error al registrar Presence:", errorPresence);
           }
@@ -265,14 +261,8 @@ function Sala() {
     // ==================================================
 
     return () => {
-      // Primero marcamos esta ejecución como terminada.
-      //
-      // De esta manera cualquier operación async
-      // que todavía esté esperando sabe que debe parar.
       activo = false;
 
-      // Después eliminamos únicamente el canal
-      // creado por esta ejecución.
       if (canal) {
         supabase.removeChannel(canal);
 
@@ -280,6 +270,159 @@ function Sala() {
       }
     };
   }, [id]);
+
+  // ==================================================
+  // REALTIME - DETECCIONES DE LA SALA
+  // ==================================================
+  //
+  // Este canal es diferente al de Presence.
+  //
+  // Presence:
+  //
+  // sala:ID
+  //
+  // Detecciones:
+  //
+  // detecciones:ID
+  //
+  // Cada vez que un dispositivo inserte
+  // una nueva fila en la tabla detecciones,
+  // Supabase nos avisará.
+  // ==================================================
+
+  useEffect(() => {
+    let activo = true;
+
+    const canalDetecciones = supabase
+      .channel(`detecciones:${id}`)
+
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+
+          schema: "public",
+
+          table: "detecciones",
+
+          // Solo queremos detecciones
+          // pertenecientes a ESTA sala.
+
+          filter: `sala_id=eq.${id}`,
+        },
+
+        (payload) => {
+          if (!activo) {
+            return;
+          }
+
+          // payload.new contiene la nueva fila
+          // insertada en Supabase.
+
+          const nuevaDeteccion = payload.new;
+
+          console.log("Detección recibida por Realtime:", nuevaDeteccion);
+
+          // Guardamos temporalmente la detección
+          // para después calcular el consenso.
+
+          setDeteccionesRecientes((anteriores) => [
+            ...anteriores,
+            nuevaDeteccion,
+          ]);
+        },
+      )
+
+      .subscribe((estado) => {
+        if (estado === "SUBSCRIBED") {
+          console.log("Escuchando detecciones Realtime de la sala:", id);
+        }
+      });
+
+    // ==================================================
+    // LIMPIEZA DEL CANAL
+    // ==================================================
+
+    return () => {
+      activo = false;
+
+      supabase.removeChannel(canalDetecciones);
+    };
+  }, [id]);
+
+  // ==================================================
+  // GUARDAR DETECCIÓN EN SUPABASE
+  // ==================================================
+  //
+  // Ejemplo recibido:
+  //
+  // {
+  //   libro: "Salmos",
+  //   capitulo: 23,
+  //   versiculo: 1,
+  //   referencia: "Salmos 23:1"
+  // }
+  //
+  // Después guardamos:
+  //
+  // sala
+  // dispositivo
+  // usuario
+  // libro
+  // capítulo
+  // versículo
+  // referencia
+  // ==================================================
+
+  async function guardarDeteccion(referencia) {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        console.error(
+          "No hay un usuario autenticado para guardar la detección.",
+        );
+
+        return;
+      }
+
+      const nuevaDeteccion = {
+        sala_id: id,
+
+        dispositivo_id: dispositivoIdRef.current,
+
+        usuario_id: user.id,
+
+        libro: referencia.libro,
+
+        capitulo: referencia.capitulo,
+
+        versiculo: referencia.versiculo,
+
+        referencia: referencia.referencia,
+      };
+
+      console.log("Guardando detección en Supabase:", nuevaDeteccion);
+
+      const { data, error: errorDeteccion } = await supabase
+        .from("detecciones")
+        .insert(nuevaDeteccion)
+        .select()
+        .single();
+
+      if (errorDeteccion) {
+        console.error("Error al guardar detección:", errorDeteccion);
+
+        return;
+      }
+
+      console.log("Detección guardada correctamente:", data);
+    } catch (errorGuardar) {
+      console.error("Error inesperado al guardar detección:", errorGuardar);
+    }
+  }
 
   // ==================================================
   // RECONOCIMIENTO DE VOZ
@@ -306,7 +449,8 @@ function Sala() {
 
     reconocimiento.continuous = true;
 
-    // También recibiremos texto temporal.
+    // También recibiremos
+    // texto temporal.
 
     reconocimiento.interimResults = true;
 
@@ -323,14 +467,14 @@ function Sala() {
 
       let textoTemporal = "";
 
-      // Recorremos los resultados
-      // entregados por el navegador.
+      // Recorremos todos los resultados
+      // entregados por Chrome.
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const texto = event.results[i][0].transcript;
 
-        // Si Chrome ya considera
-        // terminado este fragmento.
+        // Chrome considera este fragmento
+        // como definitivo.
 
         if (event.results[i].isFinal) {
           textoFinal += texto + " ";
@@ -344,30 +488,27 @@ function Sala() {
       // ==================================================
 
       if (textoFinal) {
-        // Agregamos el texto a la transcripción.
+        // Agregamos el texto
+        // a la transcripción.
 
         setTranscripcion((textoAnterior) => textoAnterior + textoFinal);
 
         // Buscamos todas las referencias
-        // existentes dentro del fragmento.
+        // bíblicas presentes en este fragmento.
 
         const referenciasEncontradas = detectarVersiculos(textoFinal);
 
         console.log("Referencias encontradas:", referenciasEncontradas);
 
-        // Si encontramos referencias...
-
         if (referenciasEncontradas.length > 0) {
           // ==================================================
-          // GUARDAR TODAS EN EL HISTORIAL
+          // GUARDAR EN HISTORIAL LOCAL
           // ==================================================
 
           setHistorialVersiculos((historialAnterior) => {
             const nuevoHistorial = [...historialAnterior];
 
             referenciasEncontradas.forEach((referencia) => {
-              // Revisamos la última guardada.
-
               const ultimoGuardado = nuevoHistorial[nuevoHistorial.length - 1];
 
               // Evitamos duplicados consecutivos.
@@ -375,8 +516,6 @@ function Sala() {
               if (ultimoGuardado?.referencia === referencia.referencia) {
                 return;
               }
-
-              // Guardamos la referencia.
 
               nuevoHistorial.push({
                 ...referencia,
@@ -389,19 +528,30 @@ function Sala() {
           });
 
           // ==================================================
-          // OBTENER LA ÚLTIMA REFERENCIA
+          // ÚLTIMA REFERENCIA
           // ==================================================
 
           const ultimaReferencia =
             referenciasEncontradas[referenciasEncontradas.length - 1];
 
           console.log("Último versículo detectado:", ultimaReferencia);
-          // Guardamos lo que este dispositivo detectó
-          // para posteriormente compararlo con los demás.
+
+          // ==================================================
+          // GUARDAR DETECCIÓN EN SUPABASE
+          // ==================================================
+          //
+          // Aquí este dispositivo está diciendo:
+          //
+          // "Yo escuché este versículo".
+          //
+          // Luego Realtime lo enviará
+          // a los demás dispositivos.
+          // ==================================================
 
           guardarDeteccion(ultimaReferencia);
+
           // Mostramos inmediatamente
-          // la referencia.
+          // la referencia detectada.
 
           setVersiculoDetectado(ultimaReferencia);
 
@@ -416,9 +566,7 @@ function Sala() {
 
           buscarVersiculo(
             ultimaReferencia.libro,
-
             ultimaReferencia.capitulo,
-
             ultimaReferencia.versiculo,
           ).then((resultado) => {
             console.log("Texto bíblico recibido:", resultado);
@@ -461,91 +609,19 @@ function Sala() {
       setEscuchando(false);
     };
 
-    // Guardamos el objeto para poder
-    // utilizarlo desde el botón.
+    // Guardamos el reconocedor
+    // para usarlo desde el botón.
 
     reconocimientoRef.current = reconocimiento;
 
-    // Cuando abandonamos la pantalla,
+    // Al abandonar la pantalla
     // detenemos el micrófono.
 
     return () => {
       reconocimiento.stop();
     };
   }, []);
-  // ==================================================
-  // GUARDAR DETECCIÓN EN SUPABASE
-  // ==================================================
-  //
-  // Esta función recibe una referencia detectada.
-  //
-  // Ejemplo:
-  //
-  // {
-  //   libro: "Salmos",
-  //   capitulo: 23,
-  //   versiculo: 1,
-  //   referencia: "Salmos 23:1"
-  // }
-  //
-  // Después guarda quién la detectó,
-  // en qué sala y desde qué dispositivo.
-  // ==================================================
 
-  async function guardarDeteccion(referencia) {
-    try {
-      // Obtenemos al usuario que tiene
-      // la sesión iniciada.
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        console.error(
-          "No hay un usuario autenticado para guardar la detección.",
-        );
-
-        return;
-      }
-
-      // Construimos exactamente la información
-      // que necesita nuestra tabla detecciones.
-
-      const nuevaDeteccion = {
-        sala_id: id,
-
-        dispositivo_id: dispositivoIdRef.current,
-
-        usuario_id: user.id,
-
-        libro: referencia.libro,
-
-        capitulo: referencia.capitulo,
-
-        versiculo: referencia.versiculo,
-
-        referencia: referencia.referencia,
-      };
-
-      console.log("Guardando detección en Supabase:", nuevaDeteccion);
-
-      const { data, error: errorDeteccion } = await supabase
-        .from("detecciones")
-        .insert(nuevaDeteccion)
-        .select()
-        .single();
-
-      if (errorDeteccion) {
-        console.error("Error al guardar detección:", errorDeteccion);
-
-        return;
-      }
-
-      console.log("Detección guardada correctamente:", data);
-    } catch (errorGuardar) {
-      console.error("Error inesperado al guardar detección:", errorGuardar);
-    }
-  }
   // ==================================================
   // INICIAR / DETENER ESCUCHA
   // ==================================================
