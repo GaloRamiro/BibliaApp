@@ -1,54 +1,61 @@
-import "./App.css";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+} from "react-router-dom";
+
+import AppLayout from "./components/Layout/AppLayout";
+
+import Home from "./pages/Home/Home";
+import Biblia from "./pages/Biblia/Biblia";
+import Sala from "./pages/Sala/Sala";
+import Guardados from "./pages/Guardados/Guardados";
+import Perfil from "./pages/Perfil/Perfil";
 
 function App() {
   return (
-    <main className="app">
-      <section className="hero">
-        <div className="hero-content">
-          <span className="badge">✦ Versículo en Vivo</span>
+    <BrowserRouter>
 
-          <h1>
-            La Palabra de Dios,
-            <br />
-            <span>en el momento.</span>
-          </h1>
+      <Routes>
 
-          <p>
-            Una nueva forma de vivir la predicación. Conecta tu celular,
-            escucha el mensaje y recibe los versículos en tiempo real.
-          </p>
+        {/* Layout principal */}
+        <Route element={<AppLayout />}>
 
-          <div className="hero-actions">
-            <button className="primary-button">
-              Crear una sala
-            </button>
+          {/* / */}
+          <Route
+            index
+            element={<Home />}
+          />
 
-            <button className="secondary-button">
-              Unirme a una sala
-            </button>
-          </div>
-        </div>
+          {/* /biblia */}
+          <Route
+            path="biblia"
+            element={<Biblia />}
+          />
 
-        <div className="hero-visual">
-          <div className="bible-card">
-            <div className="bible-icon">📖</div>
+          {/* /sala */}
+          <Route
+            path="sala"
+            element={<Sala />}
+          />
 
-            <span className="reference">JUAN 3:16</span>
+          {/* /guardados */}
+          <Route
+            path="guardados"
+            element={<Guardados />}
+          />
 
-            <p>
-              Porque de tal manera amó Dios al mundo, que ha dado a su Hijo
-              unigénito, para que todo aquel que en él cree, no se pierda,
-              mas tenga vida eterna.
-            </p>
+          {/* /perfil */}
+          <Route
+            path="perfil"
+            element={<Perfil />}
+          />
 
-            <div className="live-status">
-              <span></span>
-              EN VIVO
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
+        </Route>
+
+      </Routes>
+
+    </BrowserRouter>
   );
 }
 
