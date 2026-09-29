@@ -373,6 +373,48 @@ function Sala() {
     };
   }, [id]);
   // ==================================================
+  // CARGAR HISTORIAL GLOBAL DE LA SALA
+  // ==================================================
+  //
+  // Cuando entramos o recargamos la sala,
+  // recuperamos los versículos que ya fueron
+  // confirmados anteriormente.
+  //
+  // Así el historial no depende del dispositivo.
+  // ==================================================
+
+  useEffect(() => {
+    let activo = true;
+
+    async function cargarHistorialGlobal() {
+      const { data, error: errorHistorial } = await supabase
+        .from("versiculos_confirmados")
+        .select("*")
+        .eq("sala_id", id)
+        .order("created_at", { ascending: true });
+
+      if (!activo) {
+        return;
+      }
+
+      if (errorHistorial) {
+        console.error("Error al cargar historial global:", errorHistorial);
+
+        return;
+      }
+
+      console.log("Historial global cargado:", data);
+
+      setHistorialVersiculos(data || []);
+    }
+
+    cargarHistorialGlobal();
+
+    return () => {
+      activo = false;
+    };
+  }, [id]);
+  // ==================================================
   // REALTIME - VERSÍCULOS CONFIRMADOS
   // ==================================================
   //
