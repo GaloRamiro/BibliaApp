@@ -442,6 +442,55 @@ function Sala() {
 
             confirmadoEn: confirmado.created_at,
           });
+          // ==================================================
+          // MOSTRAR EL VERSÍCULO CONFIRMADO EN TODOS
+          // ==================================================
+          //
+          // El consenso ya es oficial.
+          //
+          // Por eso este versículo se convierte ahora
+          // en el versículo visible para toda la sala.
+          // ==================================================
+
+          const referenciaConfirmada = {
+            libro: confirmado.libro,
+
+            capitulo: confirmado.capitulo,
+
+            versiculo: confirmado.versiculo,
+
+            referencia: confirmado.referencia,
+          };
+
+          // Mostramos la referencia confirmada
+          // en este dispositivo.
+
+          setVersiculoDetectado(referenciaConfirmada);
+
+          // Limpiamos el texto anterior mientras
+          // consultamos el nuevo versículo.
+
+          setTextoVersiculo(null);
+
+          // ==================================================
+          // CONSULTAR TEXTO BÍBLICO
+          // ==================================================
+          //
+          // Cada dispositivo consulta el texto
+          // correspondiente al versículo confirmado.
+          // ==================================================
+
+          buscarVersiculo(
+            confirmado.libro,
+            confirmado.capitulo,
+            confirmado.versiculo,
+          ).then((resultado) => {
+            console.log("Texto del versículo confirmado:", resultado);
+
+            if (resultado) {
+              setTextoVersiculo(resultado);
+            }
+          });
         },
       )
 
