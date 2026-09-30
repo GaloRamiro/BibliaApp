@@ -920,106 +920,151 @@ function Sala() {
     }
 
     // ==================================================
-    // OBTENER LA DETECCIÓN MÁS RECIENTE
-    // ==================================================
-
-    const ultimaDeteccion =
-      deteccionesRecientes[deteccionesRecientes.length - 1];
-
-    if (!ultimaDeteccion) {
-      return;
-    }
-
-    // Momento en que Supabase registró
-    // la última detección.
-
-    const tiempoUltimaDeteccion = new Date(
-      ultimaDeteccion.created_at,
-    ).getTime();
-
-    // ==================================================
-    // BUSCAR DETECCIONES COMPATIBLES
+    // ANALIZAR TODAS LAS REFERENCIAS RECIENTES
     // ==================================================
     //
-    // Queremos detecciones:
+    // Antes analizábamos solamente la última detección.
     //
-    // - del mismo versículo
-    // - ocurridas cerca de la última
-    // ==================================================
-
-    const deteccionesCompatibles = deteccionesRecientes.filter((deteccion) => {
-      const tiempoDeteccion = new Date(deteccion.created_at).getTime();
-
-      const diferenciaTiempo = Math.abs(
-        tiempoUltimaDeteccion - tiempoDeteccion,
-      );
-
-      return (
-        deteccion.referencia === ultimaDeteccion.referencia &&
-        diferenciaTiempo <= VENTANA_CONSENSO_MS
-      );
-    });
-
-    // ==================================================
-    // CONTAR DISPOSITIVOS DIFERENTES
-    // ==================================================
-    //
-    // Set elimina valores repetidos.
+    // Ahora vamos a revisar todas las referencias que
+    // existan en deteccionesRecientes.
     //
     // Ejemplo:
     //
-    // [A, A, A]
+    // Juan 3:16
+    // Romanos 8:1-4
+    // Filipenses 4:13
     //
-    // se convierte en:
-    //
-    // [A]
-    //
-    // Por lo tanto un dispositivo no puede
-    // votar varias veces.
+    // Cada referencia tendrá su propio análisis
+    // de consenso.
     // ==================================================
 
-    const dispositivosUnicos = new Set(
-      deteccionesCompatibles.map((deteccion) => deteccion.dispositivo_id),
+    // Creamos una lista solamente con las referencias.
+    //
+    // Ejemplo:
+    //
+    // [
+    //   "Juan 3:16",
+    //   "Romanos 8:1-4",
+    //   "Juan 3:16"
+    // ]
+
+    const referencias = deteccionesRecientes.map(
+      (deteccion) => deteccion.referencia,
     );
 
-    const cantidadVotos = dispositivosUnicos.size;
+    // Set elimina referencias repetidas.
+    //
+    // El ejemplo anterior queda:
+    //
+    // [
+    //   "Juan 3:16",
+    //   "Romanos 8:1-4"
+    // ]
 
-    console.log(
-      "Analizando consenso:",
-      ultimaDeteccion.referencia,
-      "Votos:",
-      cantidadVotos,
-    );
+    const referenciasUnicas = [...new Set(referencias)];
 
     // ==================================================
-    // ¿SE ALCANZÓ EL CONSENSO?
+    // ANALIZAR CADA REFERENCIA
     // ==================================================
 
-    if (cantidadVotos >= VOTOS_NECESARIOS) {
-      const nuevoConsenso = {
-        referencia: ultimaDeteccion.referencia,
+    referenciasUnicas.forEach((referencia) => {
+      // Buscamos todas las detecciones
+      // que pertenecen a esta referencia.
 
-        libro: ultimaDeteccion.libro,
+      const deteccionesReferencia = deteccionesRecientes.filter(
+        (deteccion) => deteccion.referencia === referencia,
+      );
 
-        capitulo: ultimaDeteccion.capitulo,
+      // Si por alguna razón no encontramos ninguna,
+      // continuamos con la siguiente referencia.
 
-        versiculo: ultimaDeteccion.versiculo,
+      if (deteccionesReferencia.length === 0) {
+        return;
+      }
 
-        votos: cantidadVotos,
+      // ==================================================
+      // OBTENER LA DETECCIÓN MÁS RECIENTE
+      // DE ESTA REFERENCIA
+      // ==================================================
 
-        confirmadoEn: new Date().toISOString(),
-      };
+      const ultimaDeteccion =
+        deteccionesReferencia[deteccionesReferencia.length - 1];
 
-      console.log("CONSENSO ALCANZADO:", nuevoConsenso);
+      const tiempoUltimaDeteccion = new Date(
+        ultimaDeteccion.created_at,
+      ).getTime();
 
-      setConsenso(nuevoConsenso);
+      // ==================================================
+      // BUSCAR DETECCIONES COMPATIBLES
+      // ==================================================
+      //
+      // Una detección es compatible cuando:
+      //
+      // 1. Es de la misma referencia.
+      // 2. Está dentro de nuestra ventana de 10 segundos.
+      //
+      // Así evitamos juntar detecciones demasiado alejadas.
+      // ==================================================
 
-      // Además de mostrarlo localmente,
-      // guardamos la confirmación oficial
-      // de la sala en Supabase.
+      const deteccionesCompatibles = deteccionesReferencia.filter(
+        (deteccion) => {
+          const tiempoDeteccion = new Date(deteccion.created_at).getTime();
 
-      guardarVersiculoConfirmado(ultimaDeteccion, cantidadVotos);
-    }
+          const diferenciaTiempo = Math.abs(
+            tiempoUltimaDeteccion - tiempoDeteccion,
+          );
+
+          return diferenciaTiempo <= VENTANA_CONSENSO_MS;
+        },
+      );
+
+      // ==================================================
+      // CONTAR DISPOSITIVOS DIFERENTES
+      // ==================================================
+      //
+      // Un mismo dispositivo puede generar varias
+      // detecciones, pero solamente cuenta como un voto.
+      // ==================================================
+
+      const dispositivosUnicos = new Set(
+        deteccionesCompatibles.map((deteccion) => deteccion.dispositivo_id),
+      );
+
+      const cantidadVotos = dispositivosUnicos.size;
+
+      console.log("Analizando consenso:", referencia, "Votos:", cantidadVotos);
+
+      // ==================================================
+      // ¿SE ALCANZÓ EL CONSENSO?
+      // ==================================================
+
+      if (cantidadVotos >= VOTOS_NECESARIOS) {
+        const nuevoConsenso = {
+          referencia: ultimaDeteccion.referencia,
+
+          libro: ultimaDeteccion.libro,
+
+          capitulo: ultimaDeteccion.capitulo,
+
+          versiculo: ultimaDeteccion.versiculo,
+
+          versiculoFin: ultimaDeteccion.versiculo_fin ?? null,
+
+          votos: cantidadVotos,
+
+          confirmadoEn: new Date().toISOString(),
+        };
+
+        console.log("CONSENSO ALCANZADO:", nuevoConsenso);
+
+        setConsenso(nuevoConsenso);
+
+        // Guardamos la confirmación oficial
+        // de esta referencia en Supabase.
+
+        guardarVersiculoConfirmado(ultimaDeteccion, cantidadVotos);
+      }
+    });
   }, [deteccionesRecientes]);
   // ==================================================
   // GUARDAR DETECCIÓN EN SUPABASE
