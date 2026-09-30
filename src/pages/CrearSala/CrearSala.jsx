@@ -58,13 +58,50 @@ function CrearSala() {
     // Generamos el código.
     const codigo = generarCodigo();
 
-    // Guardamos la sala en Supabase.
+    // --------------------------------------------------
+    // OBTENER USUARIO AUTENTICADO
+    // --------------------------------------------------
+    //
+    // Necesitamos saber quién está creando la sala.
+    // Su ID quedará guardado en creado_por.
+    // --------------------------------------------------
+
+    const {
+      data: { user },
+      error: errorUsuario,
+    } = await supabase.auth.getUser();
+
+    // Si ocurrió un problema obteniendo el usuario.
+    if (errorUsuario) {
+      console.error("Error al obtener usuario:", errorUsuario);
+
+      setError("No se pudo identificar al usuario.");
+      setCargando(false);
+
+      return;
+    }
+
+    // Si no existe una sesión iniciada.
+    if (!user) {
+      setError("No se pudo identificar al usuario.");
+      setCargando(false);
+
+      return;
+    }
+
+    // --------------------------------------------------
+    // GUARDAR SALA EN SUPABASE
+    // --------------------------------------------------
+
     const { data, error: supabaseError } = await supabase
       .from("salas")
       .insert({
         nombre: nombre.trim(),
         codigo: codigo,
         estado: "activa",
+
+        // Guardamos quién creó esta sala.
+        creado_por: user.id,
       })
       .select()
       .single();
@@ -81,6 +118,8 @@ function CrearSala() {
     }
 
     // Todo salió correctamente.
+    console.log("Sala creada correctamente:", data);
+
     setCargando(false);
 
     // Entramos directamente a la sala que acabamos de crear.
