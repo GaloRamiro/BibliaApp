@@ -113,7 +113,19 @@ function Sala() {
   // ==================================================
 
   const reconocimientoRef = useRef(null);
+  // ==================================================
+  // REFERENCIAS YA PROCESADAS
+  // ==================================================
+  //
+  // SpeechRecognition puede devolver un fragmento que
+  // contiene varias referencias bíblicas.
+  //
+  // Guardamos temporalmente cuáles ya enviamos para
+  // evitar mandar dos veces la misma referencia dentro
+  // del mismo fragmento.
+  //
 
+  const referenciasProcesadasRef = useRef(new Set());
   // ==================================================
   // IDENTIFICADOR DEL DISPOSITIVO
   // ==================================================
@@ -1251,40 +1263,77 @@ function Sala() {
 
         if (referenciasEncontradas.length > 0) {
           // ==================================================
+          // PROCESAR TODAS LAS REFERENCIAS
+          // ==================================================
+          //
+          // Antes solamente guardábamos la última referencia.
+          //
+          // Ejemplo:
+          //
+          // Juan 3:16
+          // Romanos 8:1-4
+          // Filipenses 4:13
+          //
+          // terminaba guardando solamente Filipenses 4:13.
+          //
+          // Ahora cada referencia encontrada genera su propia
+          // detección y podrá participar en el consenso.
+          // ==================================================
+
+          const referenciasUnicas = referenciasEncontradas.filter(
+            (referencia, index, arreglo) =>
+              index ===
+              arreglo.findIndex(
+                (otraReferencia) =>
+                  otraReferencia.referencia === referencia.referencia,
+              ),
+          );
+
+          console.log(
+            "Referencias únicas que serán procesadas:",
+            referenciasUnicas,
+          );
+
+          // ==================================================
+          // GUARDAR CADA DETECCIÓN
+          // ==================================================
+
+          referenciasUnicas.forEach((referencia) => {
+            console.log("Procesando referencia:", referencia.referencia);
+
+            guardarDeteccion(referencia);
+          });
+
+          // ==================================================
           // ÚLTIMA REFERENCIA
+          // ==================================================
+          //
+          // Todas participan en el consenso, pero la tarjeta
+          // "Último versículo detectado" debe mostrar solamente
+          // la referencia más reciente.
           // ==================================================
 
           const ultimaReferencia =
-            referenciasEncontradas[referenciasEncontradas.length - 1];
+            referenciasUnicas[referenciasUnicas.length - 1];
 
           console.log("Último versículo detectado:", ultimaReferencia);
 
-          // ==================================================
-          // GUARDAR DETECCIÓN EN SUPABASE
-          // ==================================================
-          //
-          // Aquí este dispositivo está diciendo:
-          //
-          // "Yo escuché este versículo".
-          //
-          // Luego Realtime lo enviará
-          // a los demás dispositivos.
-          // ==================================================
-
-          guardarDeteccion(ultimaReferencia);
-
-          // Mostramos inmediatamente
-          // la referencia detectada.
-
           setVersiculoDetectado(ultimaReferencia);
 
-          // Limpiamos el texto anterior
-          // mientras esperamos la API.
+          // Limpiamos el texto anterior mientras consultamos
+          // el nuevo versículo.
 
           setTextoVersiculo(null);
 
           // ==================================================
           // CONSULTAR API BÍBLICA
+          // ==================================================
+          //
+          // No necesitamos consultar aquí el texto de todas
+          // las referencias.
+          //
+          // La tarjeta solamente muestra la última.
+          // Las confirmadas llegarán después mediante Realtime.
           // ==================================================
 
           buscarVersiculo(
