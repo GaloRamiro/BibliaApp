@@ -24,9 +24,21 @@ import { detectarVersiculos } from "../../utils/detectarVersiculo";
 const VOTOS_NECESARIOS = 2;
 
 // Las detecciones deben ocurrir dentro
-// de una ventana de 5 segundos.
+// de una ventana de 10 segundos.
+//
+// Damos este margen porque dos dispositivos
+// pueden tardar tiempos diferentes en convertir
+// la misma frase de voz en texto.
+//
+// Ejemplo:
+// PC detecta Romanos 8:1-4
+// 9 segundos después
+// celular detecta Romanos 8:1-4
+//
+// Ambos todavía pueden participar
+// en el mismo consenso.
 
-const VENTANA_CONSENSO_MS = 5000;
+const VENTANA_CONSENSO_MS = 10000;
 import "./Sala.css";
 
 function Sala() {
