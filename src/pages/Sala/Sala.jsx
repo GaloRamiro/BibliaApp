@@ -123,8 +123,23 @@ function Sala() {
   // ==================================================
   // REFERENCIA AL RECONOCIMIENTO DE VOZ
   // ==================================================
-
   const reconocimientoRef = useRef(null);
+  // Cada referencia tendrá su propio temporizador.
+  //
+  // Ejemplo:
+  //
+  // Juan 3:16       → temporizador A
+  // Romanos 8:1-4   → temporizador B
+  // Filipenses 4:13 → temporizador C
+  //
+  // Así una referencia no cancela a las demás.
+
+  const referenciasCandidatasRef = useRef(new Map());
+
+  // Tiempo que una referencia debe permanecer
+  // como candidata antes de aceptarla.
+
+  const TIEMPO_ESTABILIZACION_MS = 700;
   // ==================================================
   // REFERENCIAS YA PROCESADAS
   // ==================================================
@@ -1204,6 +1219,63 @@ function Sala() {
     }
   }
   // ==================================================
+  // ESTABILIZAR REFERENCIA ANTES DE GUARDAR
+  // ==================================================
+  //
+  // Esta función recibe una referencia detectada,
+  // pero NO la guarda inmediatamente.
+  //
+  // Primero la dejamos como candidata durante
+  // 700 milisegundos.
+  //
+  // Si durante ese tiempo aparece otra referencia,
+  // cancelamos el temporizador anterior y comenzamos
+  // nuevamente con la nueva candidata.
+  //
+  // Ejemplo:
+  //
+  // Juan 3:1
+  //    ↓
+  // Chrome corrige rápidamente
+  //    ↓
+  // Juan 3:16
+  //
+  // Solamente la última candidata estable
+  // llegará a guardarDeteccion().
+  // ==================================================
+
+  function estabilizarReferencia(referencia) {
+    const clave = referencia.referencia;
+
+    console.log("Referencia candidata:", clave);
+
+    // Buscamos si ESTA referencia ya estaba esperando.
+    const temporizadorAnterior = referenciasCandidatasRef.current.get(clave);
+
+    // Solamente cancelamos el temporizador de la MISMA referencia.
+    // Las demás referencias continúan normalmente.
+    if (temporizadorAnterior) {
+      clearTimeout(temporizadorAnterior);
+    }
+
+    // Creamos un temporizador independiente
+    // para esta referencia.
+    const nuevoTemporizador = setTimeout(() => {
+      console.log("Referencia estabilizada:", clave);
+
+      // Después de 700 ms enviamos esta referencia
+      // al sistema normal de detecciones.
+      guardarDeteccion(referencia);
+
+      // Ya fue procesada, así que la eliminamos del Map.
+      referenciasCandidatasRef.current.delete(clave);
+    }, TIEMPO_ESTABILIZACION_MS);
+
+    // Guardamos el temporizador usando la referencia
+    // como identificador.
+    referenciasCandidatasRef.current.set(clave, nuevoTemporizador);
+  }
+  // ==================================================
   // GUARDAR FRAGMENTO DE TRANSCRIPCIÓN
   // ==================================================
   //
@@ -1413,8 +1485,9 @@ function Sala() {
 
           referenciasUnicas.forEach((referencia) => {
             console.log("Procesando referencia:", referencia.referencia);
-
-            guardarDeteccion(referencia);
+            // Ya no guardamos inmediatamente.
+            // Primero dejamos que la referencia se estabilice.
+            estabilizarReferencia(referencia);
           });
 
           // ==================================================
