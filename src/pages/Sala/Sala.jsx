@@ -24,9 +24,21 @@ import { detectarVersiculos } from "../../utils/detectarVersiculo";
 const VOTOS_NECESARIOS = 2;
 
 // Las detecciones deben ocurrir dentro
-// de una ventana de 5 segundos.
+// de una ventana de 10 segundos.
+//
+// Damos este margen porque dos dispositivos
+// pueden tardar tiempos diferentes en convertir
+// la misma frase de voz en texto.
+//
+// Ejemplo:
+// PC detecta Romanos 8:1-4
+// 9 segundos después
+// celular detecta Romanos 8:1-4
+//
+// Ambos todavía pueden participar
+// en el mismo consenso.
 
-const VENTANA_CONSENSO_MS = 5000;
+const VENTANA_CONSENSO_MS = 10000;
 import "./Sala.css";
 
 function Sala() {
@@ -111,8 +123,23 @@ function Sala() {
   // ==================================================
   // REFERENCIA AL RECONOCIMIENTO DE VOZ
   // ==================================================
-
   const reconocimientoRef = useRef(null);
+  // Cada referencia tendrá su propio temporizador.
+  //
+  // Ejemplo:
+  //
+  // Juan 3:16       → temporizador A
+  // Romanos 8:1-4   → temporizador B
+  // Filipenses 4:13 → temporizador C
+  //
+  // Así una referencia no cancela a las demás.
+
+  const referenciasCandidatasRef = useRef(new Map());
+
+  // Tiempo que una referencia debe permanecer
+  // como candidata antes de aceptarla.
+
+  const TIEMPO_ESTABILIZACION_MS = 700;
   // ==================================================
   // REFERENCIAS YA PROCESADAS
   // ==================================================
@@ -156,6 +183,26 @@ function Sala() {
     referencia: null,
     tiempo: 0,
   });
+  // ==================================================
+  // CONSENSOS YA PROCESADOS
+  // ==================================================
+  //
+  // Guardamos qué referencia ya alcanzó consenso
+  // dentro de una determinada ventana de tiempo.
+  //
+  // Ejemplo:
+  //
+  // "Juan 3:16|123456"
+  //
+  // Esto evita intentar guardar varias veces
+  // el mismo consenso cuando llegan nuevos eventos
+  // de Realtime.
+  //
+  // Si Juan 3:16 aparece mucho tiempo después,
+  // tendrá otra ventana y podrá confirmarse otra vez.
+  // ==================================================
+
+  const consensosProcesadosRef = useRef(new Set());
   // ==================================================
   // CARGAR SALA DESDE SUPABASE
   // ==================================================
@@ -908,106 +955,187 @@ function Sala() {
     }
 
     // ==================================================
-    // OBTENER LA DETECCIÓN MÁS RECIENTE
-    // ==================================================
-
-    const ultimaDeteccion =
-      deteccionesRecientes[deteccionesRecientes.length - 1];
-
-    if (!ultimaDeteccion) {
-      return;
-    }
-
-    // Momento en que Supabase registró
-    // la última detección.
-
-    const tiempoUltimaDeteccion = new Date(
-      ultimaDeteccion.created_at,
-    ).getTime();
-
-    // ==================================================
-    // BUSCAR DETECCIONES COMPATIBLES
+    // ANALIZAR TODAS LAS REFERENCIAS RECIENTES
     // ==================================================
     //
-    // Queremos detecciones:
+    // Antes analizábamos solamente la última detección.
     //
-    // - del mismo versículo
-    // - ocurridas cerca de la última
-    // ==================================================
-
-    const deteccionesCompatibles = deteccionesRecientes.filter((deteccion) => {
-      const tiempoDeteccion = new Date(deteccion.created_at).getTime();
-
-      const diferenciaTiempo = Math.abs(
-        tiempoUltimaDeteccion - tiempoDeteccion,
-      );
-
-      return (
-        deteccion.referencia === ultimaDeteccion.referencia &&
-        diferenciaTiempo <= VENTANA_CONSENSO_MS
-      );
-    });
-
-    // ==================================================
-    // CONTAR DISPOSITIVOS DIFERENTES
-    // ==================================================
-    //
-    // Set elimina valores repetidos.
+    // Ahora vamos a revisar todas las referencias que
+    // existan en deteccionesRecientes.
     //
     // Ejemplo:
     //
-    // [A, A, A]
+    // Juan 3:16
+    // Romanos 8:1-4
+    // Filipenses 4:13
     //
-    // se convierte en:
-    //
-    // [A]
-    //
-    // Por lo tanto un dispositivo no puede
-    // votar varias veces.
+    // Cada referencia tendrá su propio análisis
+    // de consenso.
     // ==================================================
 
-    const dispositivosUnicos = new Set(
-      deteccionesCompatibles.map((deteccion) => deteccion.dispositivo_id),
+    // Creamos una lista solamente con las referencias.
+    //
+    // Ejemplo:
+    //
+    // [
+    //   "Juan 3:16",
+    //   "Romanos 8:1-4",
+    //   "Juan 3:16"
+    // ]
+
+    const referencias = deteccionesRecientes.map(
+      (deteccion) => deteccion.referencia,
     );
 
-    const cantidadVotos = dispositivosUnicos.size;
+    // Set elimina referencias repetidas.
+    //
+    // El ejemplo anterior queda:
+    //
+    // [
+    //   "Juan 3:16",
+    //   "Romanos 8:1-4"
+    // ]
 
-    console.log(
-      "Analizando consenso:",
-      ultimaDeteccion.referencia,
-      "Votos:",
-      cantidadVotos,
-    );
+    const referenciasUnicas = [...new Set(referencias)];
 
     // ==================================================
-    // ¿SE ALCANZÓ EL CONSENSO?
+    // ANALIZAR CADA REFERENCIA
     // ==================================================
 
-    if (cantidadVotos >= VOTOS_NECESARIOS) {
-      const nuevoConsenso = {
-        referencia: ultimaDeteccion.referencia,
+    referenciasUnicas.forEach((referencia) => {
+      // Buscamos todas las detecciones
+      // que pertenecen a esta referencia.
 
-        libro: ultimaDeteccion.libro,
+      const deteccionesReferencia = deteccionesRecientes.filter(
+        (deteccion) => deteccion.referencia === referencia,
+      );
 
-        capitulo: ultimaDeteccion.capitulo,
+      // Si por alguna razón no encontramos ninguna,
+      // continuamos con la siguiente referencia.
 
-        versiculo: ultimaDeteccion.versiculo,
+      if (deteccionesReferencia.length === 0) {
+        return;
+      }
 
-        votos: cantidadVotos,
+      // ==================================================
+      // OBTENER LA DETECCIÓN MÁS RECIENTE
+      // DE ESTA REFERENCIA
+      // ==================================================
 
-        confirmadoEn: new Date().toISOString(),
-      };
+      const ultimaDeteccion =
+        deteccionesReferencia[deteccionesReferencia.length - 1];
 
-      console.log("CONSENSO ALCANZADO:", nuevoConsenso);
+      const tiempoUltimaDeteccion = new Date(
+        ultimaDeteccion.created_at,
+      ).getTime();
 
-      setConsenso(nuevoConsenso);
+      // ==================================================
+      // BUSCAR DETECCIONES COMPATIBLES
+      // ==================================================
+      //
+      // Una detección es compatible cuando:
+      //
+      // 1. Es de la misma referencia.
+      // 2. Está dentro de nuestra ventana de 10 segundos.
+      //
+      // Así evitamos juntar detecciones demasiado alejadas.
+      // ==================================================
 
-      // Además de mostrarlo localmente,
-      // guardamos la confirmación oficial
-      // de la sala en Supabase.
+      const deteccionesCompatibles = deteccionesReferencia.filter(
+        (deteccion) => {
+          const tiempoDeteccion = new Date(deteccion.created_at).getTime();
 
-      guardarVersiculoConfirmado(ultimaDeteccion, cantidadVotos);
-    }
+          const diferenciaTiempo = Math.abs(
+            tiempoUltimaDeteccion - tiempoDeteccion,
+          );
+
+          return diferenciaTiempo <= VENTANA_CONSENSO_MS;
+        },
+      );
+
+      // ==================================================
+      // CONTAR DISPOSITIVOS DIFERENTES
+      // ==================================================
+      //
+      // Un mismo dispositivo puede generar varias
+      // detecciones, pero solamente cuenta como un voto.
+      // ==================================================
+
+      const dispositivosUnicos = new Set(
+        deteccionesCompatibles.map((deteccion) => deteccion.dispositivo_id),
+      );
+
+      const cantidadVotos = dispositivosUnicos.size;
+
+      console.log("Analizando consenso:", referencia, "Votos:", cantidadVotos);
+
+      // ==================================================
+      // ¿SE ALCANZÓ EL CONSENSO?
+      // ==================================================
+
+      if (cantidadVotos >= VOTOS_NECESARIOS) {
+        // ==================================================
+        // IDENTIFICAR ESTA OCURRENCIA DEL CONSENSO
+        // ==================================================
+        //
+        // Usamos la referencia + la ventana de tiempo.
+        //
+        // Así podemos distinguir:
+        //
+        // Juan 3:16 ahora
+        //
+        // de:
+        //
+        // Juan 3:16 citado nuevamente mucho después.
+        // ==================================================
+
+        const ventanaConsenso = Math.floor(
+          tiempoUltimaDeteccion / VENTANA_CONSENSO_MS,
+        );
+
+        const claveConsenso = `${ultimaDeteccion.referencia}|${ventanaConsenso}`;
+
+        // Si este dispositivo ya procesó exactamente
+        // este consenso, no intentamos guardarlo otra vez.
+
+        if (consensosProcesadosRef.current.has(claveConsenso)) {
+          console.log("Consenso ya procesado:", ultimaDeteccion.referencia);
+
+          return;
+        }
+
+        // Lo marcamos antes del INSERT.
+        //
+        // Esto es importante porque pueden llegar varios
+        // eventos Realtime casi al mismo tiempo.
+
+        consensosProcesadosRef.current.add(claveConsenso);
+        const nuevoConsenso = {
+          referencia: ultimaDeteccion.referencia,
+
+          libro: ultimaDeteccion.libro,
+
+          capitulo: ultimaDeteccion.capitulo,
+
+          versiculo: ultimaDeteccion.versiculo,
+
+          versiculoFin: ultimaDeteccion.versiculo_fin ?? null,
+
+          votos: cantidadVotos,
+
+          confirmadoEn: new Date().toISOString(),
+        };
+
+        console.log("CONSENSO ALCANZADO:", nuevoConsenso);
+
+        setConsenso(nuevoConsenso);
+
+        // Guardamos la confirmación oficial
+        // de esta referencia en Supabase.
+
+        guardarVersiculoConfirmado(ultimaDeteccion, cantidadVotos);
+      }
+    });
   }, [deteccionesRecientes]);
   // ==================================================
   // GUARDAR DETECCIÓN EN SUPABASE
@@ -1089,6 +1217,63 @@ function Sala() {
     } catch (errorGuardar) {
       console.error("Error inesperado al guardar detección:", errorGuardar);
     }
+  }
+  // ==================================================
+  // ESTABILIZAR REFERENCIA ANTES DE GUARDAR
+  // ==================================================
+  //
+  // Esta función recibe una referencia detectada,
+  // pero NO la guarda inmediatamente.
+  //
+  // Primero la dejamos como candidata durante
+  // 700 milisegundos.
+  //
+  // Si durante ese tiempo aparece otra referencia,
+  // cancelamos el temporizador anterior y comenzamos
+  // nuevamente con la nueva candidata.
+  //
+  // Ejemplo:
+  //
+  // Juan 3:1
+  //    ↓
+  // Chrome corrige rápidamente
+  //    ↓
+  // Juan 3:16
+  //
+  // Solamente la última candidata estable
+  // llegará a guardarDeteccion().
+  // ==================================================
+
+  function estabilizarReferencia(referencia) {
+    const clave = referencia.referencia;
+
+    console.log("Referencia candidata:", clave);
+
+    // Buscamos si ESTA referencia ya estaba esperando.
+    const temporizadorAnterior = referenciasCandidatasRef.current.get(clave);
+
+    // Solamente cancelamos el temporizador de la MISMA referencia.
+    // Las demás referencias continúan normalmente.
+    if (temporizadorAnterior) {
+      clearTimeout(temporizadorAnterior);
+    }
+
+    // Creamos un temporizador independiente
+    // para esta referencia.
+    const nuevoTemporizador = setTimeout(() => {
+      console.log("Referencia estabilizada:", clave);
+
+      // Después de 700 ms enviamos esta referencia
+      // al sistema normal de detecciones.
+      guardarDeteccion(referencia);
+
+      // Ya fue procesada, así que la eliminamos del Map.
+      referenciasCandidatasRef.current.delete(clave);
+    }, TIEMPO_ESTABILIZACION_MS);
+
+    // Guardamos el temporizador usando la referencia
+    // como identificador.
+    referenciasCandidatasRef.current.set(clave, nuevoTemporizador);
   }
   // ==================================================
   // GUARDAR FRAGMENTO DE TRANSCRIPCIÓN
@@ -1300,8 +1485,9 @@ function Sala() {
 
           referenciasUnicas.forEach((referencia) => {
             console.log("Procesando referencia:", referencia.referencia);
-
-            guardarDeteccion(referencia);
+            // Ya no guardamos inmediatamente.
+            // Primero dejamos que la referencia se estabilice.
+            estabilizarReferencia(referencia);
           });
 
           // ==================================================
