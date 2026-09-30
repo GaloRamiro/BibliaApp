@@ -169,6 +169,26 @@ function Sala() {
     tiempo: 0,
   });
   // ==================================================
+  // CONSENSOS YA PROCESADOS
+  // ==================================================
+  //
+  // Guardamos qué referencia ya alcanzó consenso
+  // dentro de una determinada ventana de tiempo.
+  //
+  // Ejemplo:
+  //
+  // "Juan 3:16|123456"
+  //
+  // Esto evita intentar guardar varias veces
+  // el mismo consenso cuando llegan nuevos eventos
+  // de Realtime.
+  //
+  // Si Juan 3:16 aparece mucho tiempo después,
+  // tendrá otra ventana y podrá confirmarse otra vez.
+  // ==================================================
+
+  const consensosProcesadosRef = useRef(new Set());
+  // ==================================================
   // CARGAR SALA DESDE SUPABASE
   // ==================================================
 
@@ -1039,6 +1059,42 @@ function Sala() {
       // ==================================================
 
       if (cantidadVotos >= VOTOS_NECESARIOS) {
+        // ==================================================
+        // IDENTIFICAR ESTA OCURRENCIA DEL CONSENSO
+        // ==================================================
+        //
+        // Usamos la referencia + la ventana de tiempo.
+        //
+        // Así podemos distinguir:
+        //
+        // Juan 3:16 ahora
+        //
+        // de:
+        //
+        // Juan 3:16 citado nuevamente mucho después.
+        // ==================================================
+
+        const ventanaConsenso = Math.floor(
+          tiempoUltimaDeteccion / VENTANA_CONSENSO_MS,
+        );
+
+        const claveConsenso = `${ultimaDeteccion.referencia}|${ventanaConsenso}`;
+
+        // Si este dispositivo ya procesó exactamente
+        // este consenso, no intentamos guardarlo otra vez.
+
+        if (consensosProcesadosRef.current.has(claveConsenso)) {
+          console.log("Consenso ya procesado:", ultimaDeteccion.referencia);
+
+          return;
+        }
+
+        // Lo marcamos antes del INSERT.
+        //
+        // Esto es importante porque pueden llegar varios
+        // eventos Realtime casi al mismo tiempo.
+
+        consensosProcesadosRef.current.add(claveConsenso);
         const nuevoConsenso = {
           referencia: ultimaDeteccion.referencia,
 
