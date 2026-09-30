@@ -415,6 +415,68 @@ function Sala() {
     };
   }, [id]);
   // ==================================================
+  // CARGAR TRANSCRIPCIÓN GUARDADA
+  // ==================================================
+  //
+  // Cuando entramos a la sala o hacemos F5,
+  // recuperamos todos los fragmentos que ya
+  // fueron guardados en Supabase.
+  //
+  // Los buscamos por sala_id porque toda la
+  // transcripción pertenece al mismo culto.
+  //
+  // ==================================================
+
+  useEffect(() => {
+    let activo = true;
+
+    async function cargarTranscripcion() {
+      const { data, error: errorTranscripcion } = await supabase
+        .from("transcripciones")
+        .select("*")
+        .eq("sala_id", id)
+        .order("created_at", { ascending: true });
+
+      // Si abandonamos la pantalla mientras
+      // Supabase respondía, no hacemos nada.
+      if (!activo) {
+        return;
+      }
+
+      if (errorTranscripcion) {
+        console.error("Error al cargar la transcripción:", errorTranscripcion);
+
+        return;
+      }
+
+      console.log("Transcripción guardada cargada:", data);
+
+      // Extraemos únicamente el texto de cada fila.
+      //
+      // Ejemplo:
+      // [
+      //   { texto: "Hoy hablaremos de la fe" },
+      //   { texto: "Abramos nuestras Biblias" }
+      // ]
+      //
+      // se convierte en:
+      //
+      // "Hoy hablaremos de la fe Abramos nuestras Biblias"
+
+      const textoCompleto = (data || [])
+        .map((fragmento) => fragmento.texto)
+        .join(" ");
+
+      setTranscripcion(textoCompleto);
+    }
+
+    cargarTranscripcion();
+
+    return () => {
+      activo = false;
+    };
+  }, [id]);
+  // ==================================================
   // REALTIME - VERSÍCULOS CONFIRMADOS
   // ==================================================
   //
