@@ -2,7 +2,7 @@
 // DETECTOR DE REFERENCIAS BÍBLICAS
 // ======================================================
 //
-// Su trabajo es convertir frases como:
+// Convierte frases como:
 //
 // "Juan capítulo 3 versículo 16"
 //
@@ -12,12 +12,28 @@
 //   libro: "Juan",
 //   capitulo: 3,
 //   versiculo: 16,
+//   versiculoFin: null,
 //   referencia: "Juan 3:16"
+// }
+//
+// También soporta rangos:
+//
+// "Romanos capítulo 8 del versículo 1 al 4"
+//
+// en:
+//
+// {
+//   libro: "Romanos",
+//   capitulo: 8,
+//   versiculo: 1,
+//   versiculoFin: 4,
+//   referencia: "Romanos 8:1-4"
 // }
 //
 // Este archivo NO busca el texto de la Biblia.
 // Eso lo hace bibliaService.js.
 // ======================================================
+
 
 // ------------------------------------------------------
 // NÚMEROS EN ESPAÑOL
@@ -72,6 +88,7 @@ const centenas = {
   cien: 100,
   ciento: 100,
 };
+
 
 // ------------------------------------------------------
 // LIBROS SIN NÚMERO
@@ -129,6 +146,7 @@ const librosSimples = [
   "apocalipsis",
 ];
 
+
 // ------------------------------------------------------
 // LIBROS QUE PUEDEN LLEVAR NÚMERO
 // ------------------------------------------------------
@@ -144,30 +162,39 @@ const librosNumerados = [
   "juan",
 ];
 
+
 // ------------------------------------------------------
 // NORMALIZAR TEXTO
 // ------------------------------------------------------
 
 function normalizarTexto(texto) {
-  return (
-    texto
-      .toLowerCase()
+  return texto
+    .toLowerCase()
 
-      // Quita tildes.
-      // "capítulo" -> "capitulo"
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
+    // Quita tildes.
+    // "capítulo" -> "capitulo"
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
 
-      // Convierte signos en espacios.
-      // "Juan 3:16" -> "Juan 3 16"
-      .replace(/[:.,;!?¿¡]/g, " ")
+    // Convertimos signos comunes en espacios.
+    //
+    // "Juan 3:16"
+    //       ↓
+    // "Juan 3 16"
+    //
+    // También convertimos el guion:
+    //
+    // "Romanos 8:1-4"
+    //          ↓
+    // "Romanos 8 1 4"
+    .replace(/[:.,;!?¿¡\-–—]/g, " ")
 
-      // Elimina espacios repetidos.
-      .replace(/\s+/g, " ")
+    // Elimina espacios repetidos.
+    .replace(/\s+/g, " ")
 
-      .trim()
-  );
+    .trim();
 }
+
 
 // ------------------------------------------------------
 // CONVERTIR PALABRAS A NÚMERO
@@ -175,6 +202,10 @@ function normalizarTexto(texto) {
 
 function obtenerNumero(palabras, posicion) {
   const palabra = palabras[posicion];
+
+  if (!palabra) {
+    return null;
+  }
 
   // Si Chrome ya escribió un número:
   //
@@ -249,8 +280,9 @@ function obtenerNumero(palabras, posicion) {
   return null;
 }
 
+
 // ------------------------------------------------------
-// DETECTAR PRIMERA / SEGUNDA
+// DETECTAR PRIMERA / SEGUNDA / TERCERA
 // ------------------------------------------------------
 
 function obtenerNumeroLibro(palabra) {
@@ -263,16 +295,25 @@ function obtenerNumeroLibro(palabra) {
     return 1;
   }
 
-  if (palabra === "segunda" || palabra === "segundo" || palabra === "2") {
+  if (
+    palabra === "segunda" ||
+    palabra === "segundo" ||
+    palabra === "2"
+  ) {
     return 2;
   }
 
-  if (palabra === "tercera" || palabra === "tercero" || palabra === "3") {
+  if (
+    palabra === "tercera" ||
+    palabra === "tercero" ||
+    palabra === "3"
+  ) {
     return 3;
   }
 
   return null;
 }
+
 
 // ------------------------------------------------------
 // BUSCAR EL LIBRO
@@ -283,22 +324,23 @@ function buscarLibro(palabras) {
     const palabra = palabras[i];
 
     // --------------------------------------------
-    // CASO:
+    // LIBROS SIMPLES
+    // --------------------------------------------
     //
     // Juan
     // Mateo
     // Salmos
-    // --------------------------------------------
+    // Romanos
 
     if (librosSimples.includes(palabra)) {
       // Antes de aceptar "Juan" como libro simple,
-      // revisamos si dice:
+      // revisamos si realmente dice:
       //
       // primera de Juan
       // segunda de Juan
-      //
-      const palabraAnterior = palabras[i - 1];
+      // 1 Juan
 
+      const palabraAnterior = palabras[i - 1];
       const dosAntes = palabras[i - 2];
 
       let numeroLibro = obtenerNumeroLibro(palabraAnterior);
@@ -324,15 +366,14 @@ function buscarLibro(palabras) {
     }
 
     // --------------------------------------------
-    // CASO:
+    // LIBROS NUMERADOS
+    // --------------------------------------------
     //
     // primera de Corintios
     // 1 Corintios
-    // --------------------------------------------
 
     if (librosNumerados.includes(palabra)) {
       const anterior = palabras[i - 1];
-
       const dosAntes = palabras[i - 2];
 
       let numeroLibro = obtenerNumeroLibro(anterior);
@@ -353,6 +394,7 @@ function buscarLibro(palabras) {
   return null;
 }
 
+
 // ------------------------------------------------------
 // FORMATEAR LIBRO
 // ------------------------------------------------------
@@ -361,7 +403,7 @@ function formatearLibro(libro) {
   // Ejemplo:
   //
   // "1 corintios"
-  //        ↓
+  //       ↓
   // "1 Corintios"
 
   const partes = libro.split(" ");
@@ -376,6 +418,70 @@ function formatearLibro(libro) {
     })
     .join(" ");
 }
+
+
+// ------------------------------------------------------
+// SABER SI EXISTE UN RANGO
+// ------------------------------------------------------
+
+function buscarFinRango(palabras, posicionVersiculoInicio) {
+  // Esta función busca expresiones como:
+  //
+  // versículo 1 al 4
+  // versículos 1 al 4
+  // del 1 al 4
+  // 1 hasta 4
+  //
+  // Importante:
+  // NO tomamos cualquier tercer número como fin.
+  //
+  // Debe existir una palabra que indique rango:
+  //
+  // al
+  // hasta
+  //
+  // De esta forma evitamos convertir números posteriores
+  // de una conversación en parte de la referencia.
+
+  let indice = posicionVersiculoInicio + 1;
+
+  while (indice < palabras.length) {
+    const palabra = palabras[indice];
+
+    // --------------------------------------------------
+    // ENCONTRAMOS "AL" O "HASTA"
+    // --------------------------------------------------
+
+    if (palabra === "al" || palabra === "hasta") {
+      const resultado = obtenerNumero(palabras, indice + 1);
+
+      if (resultado) {
+        return resultado.numero;
+      }
+
+      return null;
+    }
+
+    // --------------------------------------------------
+    // Si aparece otra palabra importante antes de "al",
+    // dejamos de buscar para evitar falsos positivos.
+    // --------------------------------------------------
+
+    if (
+      palabra === "capitulo" ||
+      palabra === "capitulos" ||
+      palabra === "versiculo" ||
+      palabra === "versiculos"
+    ) {
+      return null;
+    }
+
+    indice++;
+  }
+
+  return null;
+}
+
 
 // ------------------------------------------------------
 // FUNCIÓN PRINCIPAL
@@ -404,27 +510,43 @@ export function detectarVersiculo(texto) {
 
   let versiculo = null;
 
-  // ==================================================
-  // NÚMEROS DESPUÉS DEL LIBRO
-  // ==================================================
+  // NUEVO:
   //
-  // Primero obtenemos todos los números que aparecen
-  // después del nombre del libro.
+  // Si existe un rango:
+  //
+  // Romanos 8:1-4
+  //
+  // aquí guardaremos el 4.
+  let versiculoFin = null;
+
+  // También guardamos la posición exacta del
+  // versículo inicial.
+  //
+  // Esto nos permitirá buscar después:
+  //
+  // "al 4"
+  let posicionVersiculo = null;
+
+
+  // ==================================================
+  // BUSCAR NÚMEROS DESPUÉS DEL LIBRO
+  // ==================================================
   //
   // Ejemplos:
   //
   // Juan 3 16
-  //      ↓ ↓
-  //      3 16
   //
-  // Salmos 23 capítulo 1
-  //        ↓            ↓
-  //        23           1
+  // Romanos capitulo 8 versiculo 28
   //
-  // Romanos capítulo 8 versículo 28
-  //                  ↓              ↓
-  //                  8              28
+  // Romanos capitulo 8 versiculo 1 al 4
   //
+  // IMPORTANTE:
+  //
+  // Ahora NO nos detenemos inmediatamente después
+  // de encontrar dos números.
+  //
+  // Necesitamos conservar la posición del segundo
+  // número para comprobar si después dice "al 4".
   // ==================================================
 
   const numerosEncontrados = [];
@@ -438,6 +560,7 @@ export function detectarVersiculo(texto) {
       numerosEncontrados.push({
         numero: resultado.numero,
         posicion: indice,
+        consumidas: resultado.consumidas,
       });
 
       indice += resultado.consumidas;
@@ -445,58 +568,47 @@ export function detectarVersiculo(texto) {
       indice++;
     }
 
-    // Para una referencia bíblica normalmente
-    // solo necesitamos capítulo y versículo.
-
-    if (numerosEncontrados.length >= 2) {
+    // Para capítulo + versículo + posible fin
+    // necesitamos como máximo tres números.
+    if (numerosEncontrados.length >= 3) {
       break;
     }
   }
 
+
   // ==================================================
-  // CASO NORMAL
+  // CAPÍTULO Y VERSÍCULO NORMAL
   // ==================================================
   //
-  // Si encontramos dos números después del libro,
-  // usamos:
-  //
-  // primer número  = capítulo
-  // segundo número = versículo
-  //
-  // Esto hace que funcionen:
+  // Primer número  = capítulo
+  // Segundo número = versículo
   //
   // Juan 3 16
   //
-  // Juan capítulo 3 versículo 16
-  //
-  // Salmos 23 capítulo 1
-  //
-  // Romanos capítulo 8 versículo 28
-  //
+  // 3  = capítulo
+  // 16 = versículo
   // ==================================================
 
   if (numerosEncontrados.length >= 2) {
     capitulo = numerosEncontrados[0].numero;
 
     versiculo = numerosEncontrados[1].numero;
+
+    posicionVersiculo = numerosEncontrados[1].posicion;
   }
 
+
   // ==================================================
-  // CASO CON PALABRAS CAPÍTULO / VERSÍCULO
-  // ==================================================
-  //
-  // Este bloque sirve como respaldo cuando Chrome
-  // entrega una frase menos directa.
-  //
-  // Ejemplo:
-  //
-  // "Juan capítulo tres versículo dieciséis"
-  //
+  // RESPALDO: BUSCAR "CAPÍTULO"
   // ==================================================
 
   if (capitulo === null) {
     for (let i = posicion + 1; i < palabras.length; i++) {
-      if (palabras[i] === "capitulo" && palabras[i + 1]) {
+      if (
+        (palabras[i] === "capitulo" ||
+          palabras[i] === "capitulos") &&
+        palabras[i + 1]
+      ) {
         const resultado = obtenerNumero(palabras, i + 1);
 
         if (resultado) {
@@ -508,10 +620,16 @@ export function detectarVersiculo(texto) {
     }
   }
 
+
+  // ==================================================
+  // RESPALDO: BUSCAR "VERSÍCULO"
+  // ==================================================
+
   if (versiculo === null) {
     for (let i = posicion + 1; i < palabras.length; i++) {
       if (
-        (palabras[i] === "versiculo" || palabras[i] === "versiculos") &&
+        (palabras[i] === "versiculo" ||
+          palabras[i] === "versiculos") &&
         palabras[i + 1]
       ) {
         const resultado = obtenerNumero(palabras, i + 1);
@@ -519,11 +637,14 @@ export function detectarVersiculo(texto) {
         if (resultado) {
           versiculo = resultado.numero;
 
+          posicionVersiculo = i + 1;
+
           break;
         }
       }
     }
   }
+
 
   // ==================================================
   // NECESITAMOS CAPÍTULO Y VERSÍCULO
@@ -533,30 +654,95 @@ export function detectarVersiculo(texto) {
     return null;
   }
 
-  // Formateamos el nombre.
+
+  // ==================================================
+  // BUSCAR SI EXISTE UN RANGO
+  // ==================================================
   //
-  // juan
-  // ↓
-  // Juan
+  // Ejemplo:
   //
-  // 1 corintios
-  // ↓
-  // 1 Corintios
+  // Romanos capítulo 8 del versículo 1 al 4
+  //
+  // Ya sabemos:
+  //
+  // capítulo = 8
+  // versículo = 1
+  //
+  // Ahora buscamos:
+  //
+  // "al 4"
+  // ==================================================
+
+  if (posicionVersiculo !== null) {
+    const posibleFin = buscarFinRango(
+      palabras,
+      posicionVersiculo
+    );
+
+    if (
+      posibleFin !== null &&
+      posibleFin >= versiculo
+    ) {
+      versiculoFin = posibleFin;
+    }
+  }
+
+
+  // ==================================================
+  // FORMATEAR LIBRO
+  // ==================================================
 
   const nombreLibro = formatearLibro(libro);
 
-  // Devolvemos la referencia final.
+
+  // ==================================================
+  // CREAR REFERENCIA
+  // ==================================================
+  //
+  // Sin rango:
+  //
+  // Juan 3:16
+  //
+  // Con rango:
+  //
+  // Romanos 8:1-4
+  // ==================================================
+
+  let referencia = `${nombreLibro} ${capitulo}:${versiculo}`;
+
+  if (
+    versiculoFin !== null &&
+    versiculoFin !== versiculo
+  ) {
+    referencia += `-${versiculoFin}`;
+  }
+
+
+  // ==================================================
+  // RESULTADO
+  // ==================================================
 
   return {
     libro: nombreLibro,
 
     capitulo,
 
+    // Mantenemos "versiculo" para no romper
+    // nuestro código actual.
     versiculo,
 
-    referencia: `${nombreLibro} ${capitulo}:${versiculo}`,
+    // NUEVO.
+    //
+    // null = solamente un versículo.
+    //
+    // número = existe un rango.
+    versiculoFin,
+
+    referencia,
   };
 }
+
+
 // ======================================================
 // DETECTAR VARIAS REFERENCIAS
 // ======================================================
@@ -564,15 +750,27 @@ export function detectarVersiculo(texto) {
 // Ejemplo:
 //
 // "Juan capítulo 3 versículo 16,
-//  Romanos capítulo 8 versículo 28"
+// Romanos capítulo 8 del versículo 1 al 4"
 //
 // devuelve:
 //
 // [
-//   { referencia: "Juan 3:16", ... },
-//   { referencia: "Romanos 8:28", ... }
-// ]
+//   {
+//     libro: "Juan",
+//     capitulo: 3,
+//     versiculo: 16,
+//     versiculoFin: null,
+//     referencia: "Juan 3:16"
+//   },
 //
+//   {
+//     libro: "Romanos",
+//     capitulo: 8,
+//     versiculo: 1,
+//     versiculoFin: 4,
+//     referencia: "Romanos 8:1-4"
+//   }
+// ]
 // ======================================================
 
 export function detectarVersiculos(texto) {
@@ -590,45 +788,19 @@ export function detectarVersiculos(texto) {
   // ==================================================
   // BUSCAR TODOS LOS LIBROS EN EL TEXTO
   // ==================================================
-  //
-  // Aquí guardaremos dónde comienza realmente
-  // cada referencia.
-  //
-  // Ejemplo:
-  //
-  // "primera de corintios 13 4"
-  //
-  // NO queremos comenzar en:
-  //
-  // "corintios"
-  //
-  // Queremos comenzar en:
-  //
-  // "primera de corintios"
-  //
-  // ==================================================
 
   const posicionesLibros = [];
 
 
   for (let i = 0; i < palabras.length; i++) {
-
     const palabra = palabras[i];
 
 
     // ==================================================
     // LIBROS SIMPLES
     // ==================================================
-    //
-    // Juan
-    // Mateo
-    // Salmos
-    // Romanos
-    //
-    // ==================================================
 
     if (librosSimples.includes(palabra)) {
-
       // Juan también puede aparecer como:
       //
       // primera de Juan
@@ -636,7 +808,6 @@ export function detectarVersiculos(texto) {
       // tercera de Juan
 
       if (librosNumerados.includes(palabra)) {
-
         const anterior = palabras[i - 1];
 
         const dosAntes = palabras[i - 2];
@@ -647,10 +818,7 @@ export function detectarVersiculos(texto) {
         // 1 Juan
         // primera Juan
 
-        if (
-          obtenerNumeroLibro(anterior)
-        ) {
-
+        if (obtenerNumeroLibro(anterior)) {
           posicionesLibros.push(i - 1);
 
           continue;
@@ -666,12 +834,10 @@ export function detectarVersiculos(texto) {
           anterior === "de" &&
           obtenerNumeroLibro(dosAntes)
         ) {
-
           posicionesLibros.push(i - 2);
 
           continue;
         }
-
       }
 
 
@@ -692,16 +858,8 @@ export function detectarVersiculos(texto) {
     // Pedro
     // Samuel
     // Reyes
-    //
-    // Estos necesitan:
-    //
-    // primera de Corintios
-    // 1 Corintios
-    //
-    // ==================================================
 
     if (librosNumerados.includes(palabra)) {
-
       const anterior = palabras[i - 1];
 
       const dosAntes = palabras[i - 2];
@@ -712,10 +870,7 @@ export function detectarVersiculos(texto) {
       // 1 Corintios
       // primera Corintios
 
-      if (
-        obtenerNumeroLibro(anterior)
-      ) {
-
+      if (obtenerNumeroLibro(anterior)) {
         posicionesLibros.push(i - 1);
 
         continue;
@@ -730,13 +885,9 @@ export function detectarVersiculos(texto) {
         anterior === "de" &&
         obtenerNumeroLibro(dosAntes)
       ) {
-
         posicionesLibros.push(i - 2);
-
       }
-
     }
-
   }
 
 
@@ -753,9 +904,7 @@ export function detectarVersiculos(texto) {
   // no hay referencias.
 
   if (posicionesUnicas.length === 0) {
-
     return [];
-
   }
 
 
@@ -768,9 +917,7 @@ export function detectarVersiculos(texto) {
     i < posicionesUnicas.length;
     i++
   ) {
-
-    const inicio =
-      posicionesUnicas[i];
+    const inicio = posicionesUnicas[i];
 
 
     // El final será el comienzo
@@ -801,14 +948,14 @@ export function detectarVersiculos(texto) {
     );
 
 
-    // Utilizamos nuestro detector individual,
-    // que ya sabe convertir:
+    // Nuestro detector individual ahora sabe
+    // reconocer tanto:
     //
-    // Salmos 23 capítulo 1
+    // Juan 3:16
     //
-    // primera de Corintios 13 4
+    // como:
     //
-    // etc.
+    // Romanos 8:1-4
 
     const referencia =
       detectarVersiculo(
@@ -817,9 +964,7 @@ export function detectarVersiculos(texto) {
 
 
     if (!referencia) {
-
       continue;
-
     }
 
 
@@ -837,16 +982,13 @@ export function detectarVersiculos(texto) {
       ultimaReferencia?.referencia ===
       referencia.referencia
     ) {
-
       continue;
-
     }
 
 
     referencias.push(
       referencia
     );
-
   }
 
 

@@ -433,6 +433,10 @@ function Sala() {
         libro: data.libro,
         capitulo: data.capitulo,
         versiculo: data.versiculo,
+
+        // Recuperamos también el final del rango.
+        versiculoFin: data.versiculo_fin ?? null,
+
         referencia: data.referencia,
       };
 
@@ -447,6 +451,7 @@ function Sala() {
         data.libro,
         data.capitulo,
         data.versiculo,
+        data.versiculo_fin,
       );
 
       if (!activo) {
@@ -680,6 +685,8 @@ function Sala() {
 
             versiculo: confirmado.versiculo,
 
+            versiculoFin: confirmado.versiculo_fin ?? null,
+
             referencia: confirmado.referencia,
           };
 
@@ -705,6 +712,7 @@ function Sala() {
             confirmado.libro,
             confirmado.capitulo,
             confirmado.versiculo,
+            confirmado.versiculo_fin,
           ).then((resultado) => {
             console.log("Texto del versículo confirmado:", resultado);
 
@@ -797,6 +805,9 @@ function Sala() {
         capitulo: deteccion.capitulo,
 
         versiculo: deteccion.versiculo,
+
+        // Conservamos también el final del rango.
+        versiculo_fin: deteccion.versiculo_fin ?? null,
 
         referencia: deteccion.referencia,
 
@@ -1037,6 +1048,14 @@ function Sala() {
 
         versiculo: referencia.versiculo,
 
+        // Si es un rango:
+        // Romanos 8:1-4
+        // aquí guardaremos 4.
+        //
+        // Si es Juan 3:16,
+        // guardaremos null.
+        versiculo_fin: referencia.versiculoFin ?? null,
+
         referencia: referencia.referencia,
       };
 
@@ -1272,6 +1291,7 @@ function Sala() {
             ultimaReferencia.libro,
             ultimaReferencia.capitulo,
             ultimaReferencia.versiculo,
+            ultimaReferencia.versiculoFin,
           ).then((resultado) => {
             console.log("Texto bíblico recibido:", resultado);
 
