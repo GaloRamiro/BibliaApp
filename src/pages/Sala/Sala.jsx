@@ -43,7 +43,10 @@ function Sala() {
   // ==================================================
 
   const [sala, setSala] = useState(null);
-
+  // Referencia que siempre mantiene la versión actual de la sala.
+  // La usamos dentro del reconocimiento de voz para evitar
+  // trabajar con una versión antigua del estado.
+  const salaRef = useRef(null);
   const [cargando, setCargando] = useState(true);
 
   const [error, setError] = useState("");
@@ -174,7 +177,13 @@ function Sala() {
 
     cargarSala();
   }, [id]);
+  // ==================================================
+  // MANTENER SALAREF ACTUALIZADO
+  // ==================================================
 
+  useEffect(() => {
+    salaRef.current = sala;
+  }, [sala]);
   // ==================================================
   // REALTIME PRESENCE
   // ==================================================
@@ -1077,7 +1086,7 @@ function Sala() {
 
     // Una sala finalizada ya no debe
     // recibir nuevas transcripciones.
-    if (sala?.estado === "finalizada") {
+    if (salaRef.current?.estado === "finalizada") {
       console.log("Transcripción ignorada porque el culto ha finalizado.");
       return;
     }
@@ -1106,7 +1115,7 @@ function Sala() {
       // guardará la transcripción completa del culto.
       // --------------------------------------------------
 
-      if (user.id !== sala?.creado_por) {
+      if (user.id !== salaRef.current?.creado_por) {
         console.log(
           "Este dispositivo participa en el consenso, pero no guarda la transcripción.",
         );
