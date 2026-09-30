@@ -372,6 +372,89 @@ function Sala() {
       supabase.removeChannel(canalDetecciones);
     };
   }, [id]);
+
+  // ==================================================
+  // CARGAR ÚLTIMO VERSÍCULO DETECTADO
+  // ==================================================
+  //
+  // Cuando entramos nuevamente a la sala o hacemos F5,
+  // buscamos la detección más reciente guardada
+  // en Supabase.
+  //
+  // Esto NO significa que el versículo esté confirmado.
+  // Solamente recuperamos la última referencia escuchada.
+  // ==================================================
+
+  useEffect(() => {
+    let activo = true;
+
+    async function cargarUltimoVersiculoDetectado() {
+      const { data, error: errorDeteccion } = await supabase
+        .from("detecciones")
+        .select("*")
+        .eq("sala_id", id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!activo) {
+        return;
+      }
+
+      if (errorDeteccion) {
+        console.error(
+          "Error al cargar último versículo detectado:",
+          errorDeteccion,
+        );
+
+        return;
+      }
+
+      // Si todavía no existen detecciones
+      // en esta sala, no hacemos nada.
+      if (!data) {
+        console.log("La sala todavía no tiene versículos detectados.");
+
+        return;
+      }
+
+      console.log("Último versículo detectado cargado:", data);
+
+      const referenciaDetectada = {
+        libro: data.libro,
+        capitulo: data.capitulo,
+        versiculo: data.versiculo,
+        referencia: data.referencia,
+      };
+
+      // Recuperamos la referencia en React.
+      setVersiculoDetectado(referenciaDetectada);
+
+      // Limpiamos cualquier texto anterior.
+      setTextoVersiculo(null);
+
+      // Recuperamos también el texto bíblico.
+      const resultado = await buscarVersiculo(
+        data.libro,
+        data.capitulo,
+        data.versiculo,
+      );
+
+      if (!activo) {
+        return;
+      }
+
+      if (resultado) {
+        setTextoVersiculo(resultado);
+      }
+    }
+
+    cargarUltimoVersiculoDetectado();
+
+    return () => {
+      activo = false;
+    };
+  }, [id]);
   // ==================================================
   // CARGAR HISTORIAL GLOBAL DE LA SALA
   // ==================================================
