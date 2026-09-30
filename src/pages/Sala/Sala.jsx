@@ -1069,7 +1069,6 @@ function Sala() {
 
   async function guardarTranscripcion(texto) {
     // Evitamos guardar textos vacíos.
-
     const textoLimpio = texto.trim();
 
     if (!textoLimpio) {
@@ -1078,14 +1077,14 @@ function Sala() {
 
     // Una sala finalizada ya no debe
     // recibir nuevas transcripciones.
-
     if (sala?.estado === "finalizada") {
       console.log("Transcripción ignorada porque el culto ha finalizado.");
-
       return;
     }
 
     try {
+      // Obtenemos el usuario que está usando
+      // actualmente este dispositivo.
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -1097,6 +1096,27 @@ function Sala() {
 
         return;
       }
+
+      // --------------------------------------------------
+      // COMPROBAR QUIÉN CREÓ LA SALA
+      // --------------------------------------------------
+      //
+      // Todos los dispositivos pueden escuchar y detectar
+      // versículos, pero solamente el creador de la sala
+      // guardará la transcripción completa del culto.
+      // --------------------------------------------------
+
+      if (user.id !== sala?.creado_por) {
+        console.log(
+          "Este dispositivo participa en el consenso, pero no guarda la transcripción.",
+        );
+
+        return;
+      }
+
+      // --------------------------------------------------
+      // GUARDAR TRANSCRIPCIÓN
+      // --------------------------------------------------
 
       const nuevaTranscripcion = {
         sala_id: id,
