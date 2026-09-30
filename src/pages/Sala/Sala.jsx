@@ -485,6 +485,31 @@ function Sala() {
             confirmadoEn: confirmado.created_at,
           });
           // ==================================================
+          // AGREGAR AL HISTORIAL GLOBAL
+          // ==================================================
+          //
+          // Solo los versículos que ya fueron confirmados
+          // por consenso entran al historial.
+          //
+          // Como la confirmación llega mediante Realtime,
+          // todos los dispositivos reciben la misma fila.
+          // ==================================================
+
+          setHistorialVersiculos((historialAnterior) => {
+            // Comprobamos el ID porque cada confirmación
+            // oficial tiene un ID único en Supabase.
+
+            const yaExiste = historialAnterior.some(
+              (versiculo) => versiculo.id === confirmado.id,
+            );
+
+            if (yaExiste) {
+              return historialAnterior;
+            }
+
+            return [...historialAnterior, confirmado];
+          });
+          // ==================================================
           // MOSTRAR EL VERSÍCULO CONFIRMADO EN TODOS
           // ==================================================
           //
@@ -589,6 +614,27 @@ function Sala() {
         return;
       }
 
+      // ==================================================
+      // CALCULAR VENTANA DE CONSENSO
+      // ==================================================
+      //
+      // Agrupamos las confirmaciones en bloques de 5 segundos.
+      //
+      // Si PC y celular confirman el mismo versículo
+      // dentro del mismo bloque, ambos generarán
+      // exactamente el mismo número de ventana.
+      //
+      // PostgreSQL permitirá guardar solamente uno.
+      // ==================================================
+
+      const tiempoDeteccion = new Date(deteccion.created_at).getTime();
+
+      const ventanaConsenso = Math.floor(tiempoDeteccion / VENTANA_CONSENSO_MS);
+
+      // ==================================================
+      // DATOS DEL VERSÍCULO CONFIRMADO
+      // ==================================================
+
       const nuevoConfirmado = {
         sala_id: id,
 
@@ -603,6 +649,8 @@ function Sala() {
         votos,
 
         confirmado_por: user.id,
+
+        ventana_consenso: ventanaConsenso,
       };
 
       console.log("Guardando versículo confirmado:", nuevoConfirmado);
@@ -614,6 +662,29 @@ function Sala() {
         .single();
 
       if (errorConfirmacion) {
+        // ==================================================
+        // CONFIRMACIÓN DUPLICADA
+        // ==================================================
+        //
+        // PostgreSQL devuelve el código 23505 cuando
+        // otro dispositivo ya guardó el mismo versículo
+        // dentro de la misma ventana de consenso.
+        //
+        // Esto NO es un error real para nuestra aplicación.
+        // Significa que otro dispositivo ganó la carrera.
+        // ==================================================
+
+        if (errorConfirmacion.code === "23505") {
+          console.log(
+            "El versículo ya fue confirmado por otro dispositivo:",
+            deteccion.referencia,
+          );
+
+          return;
+        }
+
+        // Cualquier otro error sí debemos mostrarlo.
+
         console.error(
           "Error al guardar versículo confirmado:",
           errorConfirmacion,
@@ -834,7 +905,78 @@ function Sala() {
       console.error("Error inesperado al guardar detección:", errorGuardar);
     }
   }
+  // ==================================================
+  // GUARDAR FRAGMENTO DE TRANSCRIPCIÓN
+  // ==================================================
+  //
+  // Cada vez que Chrome termina de reconocer
+  // un fragmento de voz, lo guardamos en Supabase.
+  //
+  // Ejemplo:
+  //
+  // "Hoy vamos a hablar acerca de la fe."
+  //
+  // Cada fragmento queda relacionado con:
+  // - la sala
+  // - el dispositivo
+  // - el usuario
+  // ==================================================
 
+  async function guardarTranscripcion(texto) {
+    // Evitamos guardar textos vacíos.
+
+    const textoLimpio = texto.trim();
+
+    if (!textoLimpio) {
+      return;
+    }
+
+    // Una sala finalizada ya no debe
+    // recibir nuevas transcripciones.
+
+    if (sala?.estado === "finalizada") {
+      console.log("Transcripción ignorada porque el culto ha finalizado.");
+
+      return;
+    }
+
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        console.error(
+          "No hay un usuario autenticado para guardar la transcripción.",
+        );
+
+        return;
+      }
+
+      const nuevaTranscripcion = {
+        sala_id: id,
+        dispositivo_id: dispositivoIdRef.current,
+        usuario_id: user.id,
+        texto: textoLimpio,
+      };
+
+      const { data, error: errorTranscripcion } = await supabase
+        .from("transcripciones")
+        .insert(nuevaTranscripcion)
+        .select()
+        .single();
+
+      if (errorTranscripcion) {
+        console.error("Error al guardar la transcripción:", errorTranscripcion);
+
+        return;
+      }
+
+      console.log("Fragmento de transcripción guardado:", data);
+    } catch (errorGuardar) {
+      console.error("Error inesperado guardando transcripción:", errorGuardar);
+    }
+  }
   // ==================================================
   // RECONOCIMIENTO DE VOZ
   // ==================================================
@@ -912,32 +1054,6 @@ function Sala() {
         console.log("Referencias encontradas:", referenciasEncontradas);
 
         if (referenciasEncontradas.length > 0) {
-          // ==================================================
-          // GUARDAR EN HISTORIAL LOCAL
-          // ==================================================
-
-          setHistorialVersiculos((historialAnterior) => {
-            const nuevoHistorial = [...historialAnterior];
-
-            referenciasEncontradas.forEach((referencia) => {
-              const ultimoGuardado = nuevoHistorial[nuevoHistorial.length - 1];
-
-              // Evitamos duplicados consecutivos.
-
-              if (ultimoGuardado?.referencia === referencia.referencia) {
-                return;
-              }
-
-              nuevoHistorial.push({
-                ...referencia,
-
-                detectadoEn: new Date().toISOString(),
-              });
-            });
-
-            return nuevoHistorial;
-          });
-
           // ==================================================
           // ÚLTIMA REFERENCIA
           // ==================================================
@@ -1036,11 +1152,30 @@ function Sala() {
   // ==================================================
   // INICIAR / DETENER ESCUCHA
   // ==================================================
+  // ==================================================
+  // INICIAR / DETENER ESCUCHA
+  // ==================================================
 
   function cambiarEscucha() {
     const reconocimiento = reconocimientoRef.current;
 
     if (!reconocimiento) {
+      return;
+    }
+
+    // ==================================================
+    // BLOQUEAR MICRÓFONO SI EL CULTO FINALIZÓ
+    // ==================================================
+    //
+    // Una sala finalizada ya no debe generar
+    // nuevas transcripciones ni detecciones.
+    // ==================================================
+
+    if (sala?.estado === "finalizada") {
+      console.log(
+        "No se puede iniciar el micrófono porque el culto ha finalizado.",
+      );
+
       return;
     }
 
@@ -1068,7 +1203,81 @@ function Sala() {
       console.error("No se pudo iniciar el micrófono:", errorReconocimiento);
     }
   }
+  // ==================================================
+  // FINALIZAR CULTO
+  // ==================================================
+  //
+  // Cuando el administrador termina el culto:
+  //
+  // 1. Cambiamos el estado de la sala a "finalizada".
+  // 2. Guardamos la fecha y hora de finalización.
+  // 3. Actualizamos el estado local de React.
+  //
+  // NO borramos la sala porque después necesitaremos
+  // su historial, versículos y enseñanza.
+  // ==================================================
 
+  async function finalizarCulto() {
+    // Evitamos finalizar nuevamente
+    // una sala que ya terminó.
+
+    if (sala?.estado === "finalizada") {
+      return;
+    }
+
+    // Pedimos confirmación para evitar
+    // terminar el culto por accidente.
+
+    const confirmar = window.confirm(
+      "¿Estás seguro de que deseas finalizar este culto?",
+    );
+
+    if (!confirmar) {
+      return;
+    }
+
+    try {
+      const fechaFin = new Date().toISOString();
+
+      const { data, error: errorFinalizar } = await supabase
+        .from("salas")
+        .update({
+          estado: "finalizada",
+          fecha_fin: fechaFin,
+        })
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (errorFinalizar) {
+        console.error("Error al finalizar el culto:", errorFinalizar);
+        return;
+      }
+
+      console.log("Culto finalizado correctamente:", data);
+
+      // Actualizamos la sala en React.
+      // Así la pantalla cambia inmediatamente
+      // sin necesidad de hacer F5.
+      // ==================================================
+      // DETENER MICRÓFONO AL FINALIZAR EL CULTO
+      // ==================================================
+      //
+      // Si el dispositivo estaba escuchando cuando
+      // finalizamos el culto, detenemos el reconocimiento
+      // inmediatamente.
+      // ==================================================
+
+      if (reconocimientoRef.current && escuchando) {
+        reconocimientoRef.current.stop();
+
+        setEscuchando(false);
+      }
+      setSala(data);
+    } catch (errorFinalizar) {
+      console.error("Error inesperado al finalizar el culto:", errorFinalizar);
+    }
+  }
   // ==================================================
   // COPIAR CÓDIGO
   // ==================================================
@@ -1176,7 +1385,23 @@ function Sala() {
             <Copy size={20} />
           </button>
         </div>
+        {/* ==============================================
+    FINALIZAR CULTO
+    ============================================== */}
 
+        {sala.estado === "activa" && (
+          <button
+            type="button"
+            className="sala-finish-button"
+            onClick={finalizarCulto}
+          >
+            Finalizar culto
+          </button>
+        )}
+
+        {sala.estado === "finalizada" && (
+          <div className="sala-finished-message">Este culto ha finalizado.</div>
+        )}
         {/* ==============================================
             DISPOSITIVOS CONECTADOS
             ============================================== */}
@@ -1236,10 +1461,15 @@ function Sala() {
               escuchando ? "sala-start-button escuchando" : "sala-start-button"
             }
             onClick={cambiarEscucha}
+            disabled={sala?.estado === "finalizada"}
           >
             {escuchando ? <MicOff size={19} /> : <Mic size={19} />}
 
-            {escuchando ? "Detener escucha" : "Iniciar escucha"}
+            {sala?.estado === "finalizada"
+              ? "Culto finalizado"
+              : escuchando
+                ? "Detener escucha"
+                : "Iniciar escucha"}
           </button>
 
           {errorMicrofono && (
