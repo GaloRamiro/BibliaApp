@@ -1045,7 +1045,10 @@ function Sala() {
         // a la transcripción.
 
         setTranscripcion((textoAnterior) => textoAnterior + textoFinal);
+        // Guardamos también este fragmento
+        // en Supabase.
 
+        guardarTranscripcion(textoFinal);
         // Buscamos todas las referencias
         // bíblicas presentes en este fragmento.
 
