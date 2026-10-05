@@ -40,7 +40,42 @@ const VOTOS_NECESARIOS = 2;
 
 const VENTANA_CONSENSO_MS = 10000;
 import "./Sala.css";
+// ==================================================
+// OBTENER IDENTIFICADOR DEL DISPOSITIVO
+// ==================================================
+//
+// Cada navegador tendrá un identificador propio.
+//
+// La primera vez:
+// 1. Buscamos si ya existe un ID en localStorage.
+// 2. Si no existe, creamos uno.
+// 3. Lo guardamos.
+//
+// Las siguientes veces:
+// recuperamos siempre el mismo ID.
+//
+// Así un F5 no convierte al mismo dispositivo
+// en un dispositivo diferente.
+// ==================================================
 
+function obtenerDispositivoId() {
+  const dispositivoGuardado = localStorage.getItem(
+    "versiculo_en_vivo_dispositivo_id",
+  );
+
+  // Si ya existe, lo reutilizamos.
+  if (dispositivoGuardado) {
+    return dispositivoGuardado;
+  }
+
+  // Si es la primera vez, creamos uno nuevo.
+  const nuevoDispositivoId = crypto.randomUUID();
+
+  // Lo guardamos para futuras visitas.
+  localStorage.setItem("versiculo_en_vivo_dispositivo_id", nuevoDispositivoId);
+
+  return nuevoDispositivoId;
+}
 function Sala() {
   // ==================================================
   // DATOS DE LA RUTA
@@ -170,7 +205,7 @@ function Sala() {
   // durante toda la vida de esta pantalla.
   // ==================================================
 
-  const dispositivoIdRef = useRef(crypto.randomUUID());
+  const dispositivoIdRef = useRef(obtenerDispositivoId());
   // ==================================================
   // ÚLTIMA CONFIRMACIÓN GUARDADA
   // ==================================================
