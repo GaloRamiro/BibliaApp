@@ -99,7 +99,9 @@ function Sala() {
   const [error, setError] = useState("");
 
   const [conectados, setConectados] = useState(0);
-
+  // Usuario que está utilizando actualmente la sala.
+  // Lo necesitamos para saber si es el creador.
+  const [usuarioActual, setUsuarioActual] = useState(null);
   // ==================================================
   // ESTADOS DEL MICRÓFONO
   // ==================================================
@@ -135,7 +137,32 @@ function Sala() {
   // durante la predicación.
 
   const [historialVersiculos, setHistorialVersiculos] = useState([]);
+  // ==================================================
+  // ESTADOS DE CORRECCIÓN MANUAL
+  // ==================================================
+  //
+  // Estos estados se utilizarán cuando el administrador
+  // necesite corregir un versículo confirmado.
+  //
+  // Ejemplo:
+  //
+  // Detectado:
+  // Juan 13:16
+  //
+  // Corrección:
+  // Juan 3:16
+  //
+  // Por ahora solamente preparamos la interfaz.
+  // Todavía NO modificamos Supabase.
+  // ==================================================
 
+  const [versiculoACorregir, setVersiculoACorregir] = useState(null);
+
+  const [referenciaCorreccion, setReferenciaCorreccion] = useState("");
+
+  const [mostrarCorreccion, setMostrarCorreccion] = useState(false);
+
+  const [errorCorreccion, setErrorCorreccion] = useState("");
   // ==================================================
   // ESTADOS DEL CONSENSO
   // ==================================================
@@ -271,6 +298,36 @@ function Sala() {
 
     cargarSala();
   }, [id]);
+  // ==================================================
+  // OBTENER USUARIO ACTUAL
+  // ==================================================
+  //
+  // Necesitamos conocer al usuario autenticado
+  // para decidir si puede ver los controles
+  // administrativos de corrección.
+  // ==================================================
+
+  useEffect(() => {
+    let activo = true;
+
+    async function cargarUsuarioActual() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!activo) {
+        return;
+      }
+
+      setUsuarioActual(user);
+    }
+
+    cargarUsuarioActual();
+
+    return () => {
+      activo = false;
+    };
+  }, []);
   // ==================================================
   // MANTENER SALAREF ACTUALIZADO
   // ==================================================
@@ -1671,6 +1728,33 @@ function Sala() {
     }
   }
   // ==================================================
+  // ABRIR CORRECCIÓN MANUAL
+  // ==================================================
+  //
+  // Esta función se ejecutará cuando el administrador
+  // presione el botón "Corregir" de un versículo.
+  //
+  // Todavía NO modifica Supabase.
+  // Solamente prepara y abre el formulario.
+  // ==================================================
+
+  function abrirCorreccion(versiculo) {
+    // Guardamos el registro completo que queremos corregir.
+    setVersiculoACorregir(versiculo);
+
+    // Colocamos como valor inicial la referencia actual.
+    //
+    // Ejemplo:
+    // Juan 13:16
+    setReferenciaCorreccion(versiculo.referencia);
+
+    // Limpiamos posibles errores anteriores.
+    setErrorCorreccion("");
+
+    // Abrimos el formulario de corrección.
+    setMostrarCorreccion(true);
+  }
+  // ==================================================
   // FINALIZAR CULTO
   // ==================================================
   //
@@ -2040,17 +2124,42 @@ function Sala() {
           {historialVersiculos.length > 0 ? (
             <div className="sala-history-list">
               {historialVersiculos.map((versiculo, index) => (
-                <div
-                  className="sala-history-item"
-                  key={`${versiculo.referencia}-${index}`}
-                >
+                <div className="sala-history-item" key={versiculo.id}>
+                  {/* Número del versículo dentro del historial */}
                   <div className="sala-history-number">{index + 1}</div>
 
+                  {/* Información del versículo */}
                   <div className="sala-history-info">
                     <strong>{versiculo.referencia}</strong>
 
-                    <span>Detectado durante la predicación</span>
+                    <span>
+                      {versiculo.corregido
+                        ? "Referencia corregida manualmente"
+                        : "Detectado durante la predicación"}
+                    </span>
                   </div>
+
+                  {/* ==============================================
+        BOTÓN DE CORRECCIÓN
+        ==============================================
+
+        Solamente aparece cuando:
+
+        usuarioActual.id === sala.creado_por
+
+        Es decir:
+        solamente el creador de la sala puede verlo.
+    */}
+
+                  {usuarioActual?.id === sala?.creado_por && (
+                    <button
+                      type="button"
+                      className="sala-correction-button"
+                      onClick={() => abrirCorreccion(versiculo)}
+                    >
+                      Corregir
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
