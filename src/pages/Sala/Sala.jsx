@@ -743,17 +743,29 @@ function Sala() {
     const canalConfirmados = supabase
       .channel(`confirmados:${id}`)
 
+      // ==================================================
+      // REALTIME - CORRECCIONES DE VERSÍCULOS
+      // ==================================================
+      //
+      // INSERT = apareció un nuevo versículo confirmado.
+      // UPDATE = un administrador corrigió un versículo.
+      //
+      // Ejemplo:
+      //
+      // Juan 13:16
+      //      ↓ corrección
+      // Juan 3:16
+      //
+      // Supabase avisará a todos los dispositivos
+      // conectados a esta sala.
+      // ==================================================
+
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
-
+          event: "UPDATE",
           schema: "public",
-
           table: "versiculos_confirmados",
-
-          // Solo escuchamos confirmaciones
-          // pertenecientes a esta sala.
           filter: `sala_id=eq.${id}`,
         },
 
@@ -762,115 +774,106 @@ function Sala() {
             return;
           }
 
-          // La fila que acaba de insertarse
-          // en versiculos_confirmados.
-          const confirmado = payload.new;
+          // payload.new contiene la fila
+          // después de la corrección.
+          const versiculoActualizado = payload.new;
 
           console.log(
-            "Versículo confirmado recibido por Realtime:",
-            confirmado,
+            "Versículo corregido recibido por Realtime:",
+            versiculoActualizado,
           );
 
           // ==================================================
-          // ACTUALIZAR CONSENSO GLOBAL
+          // ACTUALIZAR HISTORIAL
           // ==================================================
           //
-          // Ya no importa qué teléfono calculó
-          // originalmente el consenso.
-          //
-          // Todos reciben la confirmación oficial.
+          // Buscamos el registro por su ID y sustituimos
+          // la versión anterior por la corregida.
           // ==================================================
 
-          setConsenso({
-            referencia: confirmado.referencia,
+          setHistorialVersiculos((historialAnterior) =>
+            historialAnterior.map((versiculo) =>
+              versiculo.id === versiculoActualizado.id
+                ? versiculoActualizado
+                : versiculo,
+            ),
+          );
 
-            libro: confirmado.libro,
-
-            capitulo: confirmado.capitulo,
-
-            versiculo: confirmado.versiculo,
-
-            votos: confirmado.votos,
-
-            confirmadoEn: confirmado.created_at,
-          });
           // ==================================================
-          // AGREGAR AL HISTORIAL GLOBAL
-          // ==================================================
-          //
-          // Solo los versículos que ya fueron confirmados
-          // por consenso entran al historial.
-          //
-          // Como la confirmación llega mediante Realtime,
-          // todos los dispositivos reciben la misma fila.
+          // ACTUALIZAR CONSENSO VISIBLE
           // ==================================================
 
-          setHistorialVersiculos((historialAnterior) => {
-            // Comprobamos el ID porque cada confirmación
-            // oficial tiene un ID único en Supabase.
+          setConsenso((consensoAnterior) => {
+            // Si el consenso que estamos mostrando
+            // corresponde al registro corregido,
+            // actualizamos sus datos.
+            //
+            // Como el consenso actual no guarda el ID,
+            // utilizamos la referencia original como apoyo.
 
-            const yaExiste = historialAnterior.some(
-              (versiculo) => versiculo.id === confirmado.id,
-            );
-
-            if (yaExiste) {
-              return historialAnterior;
+            if (
+              consensoAnterior &&
+              versiculoActualizado.referencia_original &&
+              consensoAnterior.referencia ===
+                versiculoActualizado.referencia_original
+            ) {
+              return {
+                ...consensoAnterior,
+                referencia: versiculoActualizado.referencia,
+                libro: versiculoActualizado.libro,
+                capitulo: versiculoActualizado.capitulo,
+                versiculo: versiculoActualizado.versiculo,
+              };
             }
 
-            return [...historialAnterior, confirmado];
+            return consensoAnterior;
           });
+
           // ==================================================
-          // MOSTRAR EL VERSÍCULO CONFIRMADO EN TODOS
-          // ==================================================
-          //
-          // El consenso ya es oficial.
-          //
-          // Por eso este versículo se convierte ahora
-          // en el versículo visible para toda la sala.
+          // MOSTRAR LA REFERENCIA CORREGIDA
           // ==================================================
 
-          const referenciaConfirmada = {
-            libro: confirmado.libro,
-
-            capitulo: confirmado.capitulo,
-
-            versiculo: confirmado.versiculo,
-
-            versiculoFin: confirmado.versiculo_fin ?? null,
-
-            referencia: confirmado.referencia,
+          const referenciaCorregida = {
+            libro: versiculoActualizado.libro,
+            capitulo: versiculoActualizado.capitulo,
+            versiculo: versiculoActualizado.versiculo,
+            versiculoFin: versiculoActualizado.versiculo_fin ?? null,
+            referencia: versiculoActualizado.referencia,
           };
 
-          // Mostramos la referencia confirmada
-          // en este dispositivo.
+          setVersiculoDetectado(referenciaCorregida);
 
-          setVersiculoDetectado(referenciaConfirmada);
-
-          // Limpiamos el texto anterior mientras
-          // consultamos el nuevo versículo.
-
+          // Mientras buscamos el nuevo texto,
+          // quitamos el anterior.
           setTextoVersiculo(null);
 
           // ==================================================
-          // CONSULTAR TEXTO BÍBLICO
-          // ==================================================
-          //
-          // Cada dispositivo consulta el texto
-          // correspondiente al versículo confirmado.
+          // BUSCAR EL TEXTO DEL VERSÍCULO CORREGIDO
           // ==================================================
 
           buscarVersiculo(
-            confirmado.libro,
-            confirmado.capitulo,
-            confirmado.versiculo,
-            confirmado.versiculo_fin,
-          ).then((resultado) => {
-            console.log("Texto del versículo confirmado:", resultado);
+            versiculoActualizado.libro,
+            versiculoActualizado.capitulo,
+            versiculoActualizado.versiculo,
+            versiculoActualizado.versiculo_fin,
+          )
+            .then((resultado) => {
+              if (!activo) {
+                return;
+              }
 
-            if (resultado) {
-              setTextoVersiculo(resultado);
-            }
-          });
+              console.log("Texto del versículo corregido:", resultado);
+
+              if (resultado) {
+                setTextoVersiculo(resultado);
+              }
+            })
+            .catch((errorBusqueda) => {
+              console.error(
+                "Error obteniendo texto del versículo corregido:",
+                errorBusqueda,
+              );
+            });
         },
       )
 
@@ -1755,6 +1758,213 @@ function Sala() {
     setMostrarCorreccion(true);
   }
   // ==================================================
+  // VALIDAR CORRECCIÓN MANUAL
+  // ==================================================
+  //
+  // Antes de modificar Supabase comprobamos que
+  // el administrador haya escrito una referencia
+  // bíblica que nuestro detector pueda reconocer.
+  //
+  // Ejemplo:
+  //
+  // Juan 3:16
+  //      ↓
+  // detectarVersiculos()
+  //      ↓
+  // referencia válida
+  //
+  // En este paso todavía NO modificamos Supabase.
+  // ==================================================
+
+  async function validarCorreccion() {
+    // Quitamos espacios innecesarios.
+    const textoCorreccion = referenciaCorreccion.trim();
+
+    // No permitimos enviar el campo vacío.
+    if (!textoCorreccion) {
+      setErrorCorreccion("Escribe una referencia bíblica.");
+
+      return;
+    }
+
+    // Utilizamos el mismo detector que ya usa
+    // el reconocimiento de voz.
+    const referenciasEncontradas = detectarVersiculos(textoCorreccion);
+
+    console.log(
+      "Referencias encontradas en la corrección:",
+      referenciasEncontradas,
+    );
+
+    // Debemos encontrar exactamente una referencia.
+    if (referenciasEncontradas.length === 0) {
+      setErrorCorreccion("No pudimos reconocer esa referencia bíblica.");
+
+      return;
+    }
+
+    if (referenciasEncontradas.length > 1) {
+      setErrorCorreccion("Escribe solamente una referencia bíblica.");
+
+      return;
+    }
+
+    // Tomamos la referencia validada.
+    const referenciaValidada = referenciasEncontradas[0];
+
+    // Limpiamos posibles errores anteriores.
+    setErrorCorreccion("");
+
+    console.log("Referencia válida para corregir:", referenciaValidada);
+    // ==================================================
+    // COMPROBAR QUE EL VERSÍCULO EXISTE
+    // ==================================================
+    //
+    // El detector ya entendió la referencia.
+    // Ahora consultamos la API bíblica para comprobar
+    // que podamos obtener realmente su contenido.
+    // ==================================================
+
+    try {
+      const resultado = await buscarVersiculo(
+        referenciaValidada.libro,
+        referenciaValidada.capitulo,
+        referenciaValidada.versiculo,
+        referenciaValidada.versiculoFin,
+      );
+
+      // Si la API no devuelve resultado,
+      // no continuamos con la corrección.
+      if (!resultado) {
+        setErrorCorreccion("No pudimos encontrar ese versículo en la Biblia.");
+
+        return;
+      }
+
+      // En este punto ya sabemos dos cosas:
+      //
+      // 1. La referencia fue reconocida.
+      // 2. Pudimos obtener su texto bíblico.
+      //
+      // Todavía NO modificamos Supabase.
+
+      setErrorCorreccion("");
+
+      console.log("Texto bíblico de la corrección:", resultado);
+
+      console.log("Referencia lista para guardar:", referenciaValidada);
+      // ==================================================
+      // GUARDAR CORRECCIÓN EN SUPABASE
+      // ==================================================
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      // Comprobamos que exista un usuario autenticado.
+      if (!user) {
+        setErrorCorreccion(
+          "No existe un usuario autenticado para realizar la corrección.",
+        );
+
+        return;
+      }
+
+      // Seguridad adicional desde React:
+      // solamente el creador de la sala puede corregir.
+      if (user.id !== sala?.creado_por) {
+        setErrorCorreccion("No tienes permiso para corregir este versículo.");
+
+        return;
+      }
+
+      // Debemos tener seleccionado el registro
+      // que queremos modificar.
+      if (!versiculoACorregir?.id) {
+        setErrorCorreccion("No encontramos el versículo que deseas corregir.");
+
+        return;
+      }
+
+      // Preparamos los nuevos datos.
+      const datosCorreccion = {
+        libro: referenciaValidada.libro,
+        capitulo: referenciaValidada.capitulo,
+        versiculo: referenciaValidada.versiculo,
+        versiculo_fin: referenciaValidada.versiculoFin ?? null,
+        referencia: referenciaValidada.referencia,
+
+        corregido: true,
+
+        // Conservamos SIEMPRE la primera referencia original.
+        referencia_original:
+          versiculoACorregir.referencia_original ??
+          versiculoACorregir.referencia,
+
+        corregido_por: user.id,
+        corregido_at: new Date().toISOString(),
+      };
+
+      console.log("Guardando corrección en Supabase:", datosCorreccion);
+
+      const { data: versiculoCorregido, error: errorActualizar } =
+        await supabase
+          .from("versiculos_confirmados")
+          .update(datosCorreccion)
+          .eq("id", versiculoACorregir.id)
+          .eq("sala_id", id)
+          .select()
+          .single();
+
+      if (errorActualizar) {
+        console.error("Error al guardar la corrección:", errorActualizar);
+
+        setErrorCorreccion("No pudimos guardar la corrección.");
+
+        return;
+      }
+
+      console.log("Versículo corregido correctamente:", versiculoCorregido);
+
+      // Actualizamos inmediatamente este dispositivo.
+      setHistorialVersiculos((historialAnterior) =>
+        historialAnterior.map((versiculo) =>
+          versiculo.id === versiculoCorregido.id
+            ? versiculoCorregido
+            : versiculo,
+        ),
+      );
+
+      // También mostramos como versículo actual
+      // la referencia que acabamos de corregir.
+      setVersiculoDetectado({
+        libro: versiculoCorregido.libro,
+        capitulo: versiculoCorregido.capitulo,
+        versiculo: versiculoCorregido.versiculo,
+        versiculoFin: versiculoCorregido.versiculo_fin ?? null,
+        referencia: versiculoCorregido.referencia,
+      });
+
+      // Ya tenemos el texto obtenido en el paso 13.8.
+      setTextoVersiculo(resultado);
+
+      // Cerramos y limpiamos el formulario.
+      setMostrarCorreccion(false);
+      setVersiculoACorregir(null);
+      setReferenciaCorreccion("");
+      setErrorCorreccion("");
+    } catch (errorBusqueda) {
+      console.error(
+        "Error comprobando la referencia corregida:",
+        errorBusqueda,
+      );
+
+      setErrorCorreccion(
+        "No pudimos comprobar el versículo. Intenta nuevamente.",
+      );
+    }
+  }
+  // ==================================================
   // FINALIZAR CULTO
   // ==================================================
   //
@@ -2125,10 +2335,10 @@ function Sala() {
             <div className="sala-history-list">
               {historialVersiculos.map((versiculo, index) => (
                 <div className="sala-history-item" key={versiculo.id}>
-                  {/* Número del versículo dentro del historial */}
+                  {/* Número */}
                   <div className="sala-history-number">{index + 1}</div>
 
-                  {/* Información del versículo */}
+                  {/* Información */}
                   <div className="sala-history-info">
                     <strong>{versiculo.referencia}</strong>
 
@@ -2139,18 +2349,7 @@ function Sala() {
                     </span>
                   </div>
 
-                  {/* ==============================================
-        BOTÓN DE CORRECCIÓN
-        ==============================================
-
-        Solamente aparece cuando:
-
-        usuarioActual.id === sala.creado_por
-
-        Es decir:
-        solamente el creador de la sala puede verlo.
-    */}
-
+                  {/* Botón visible solamente para el creador */}
                   {usuarioActual?.id === sala?.creado_por && (
                     <button
                       type="button"
@@ -2160,8 +2359,53 @@ function Sala() {
                       Corregir
                     </button>
                   )}
+                  {/* Formulario de corrección */}
+                  {mostrarCorreccion &&
+                    versiculoACorregir?.id === versiculo.id && (
+                      <div className="sala-correction-form">
+                        <label htmlFor={`correccion-${versiculo.id}`}>
+                          Corregir referencia
+                        </label>
+
+                        <input
+                          id={`correccion-${versiculo.id}`}
+                          type="text"
+                          value={referenciaCorreccion}
+                          onChange={(event) => {
+                            setReferenciaCorreccion(event.target.value);
+                            setErrorCorreccion("");
+                          }}
+                          placeholder="Ejemplo: Juan 3:16"
+                        />
+
+                        {errorCorreccion && (
+                          <p className="sala-correction-error">
+                            {errorCorreccion}
+                          </p>
+                        )}
+
+                        <div className="sala-correction-actions">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMostrarCorreccion(false);
+                              setVersiculoACorregir(null);
+                              setReferenciaCorreccion("");
+                              setErrorCorreccion("");
+                            }}
+                          >
+                            Cancelar
+                          </button>
+
+                          <button type="button" onClick={validarCorreccion}>
+                            Guardar corrección
+                          </button>
+                        </div>
+                      </div>
+                    )}
                 </div>
               ))}
+              v
             </div>
           ) : (
             <div className="sala-history-empty">
@@ -2175,5 +2419,4 @@ function Sala() {
     </main>
   );
 }
-
 export default Sala;
